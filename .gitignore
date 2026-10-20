@@ -1,0 +1,10 @@
+node_modules
+.next
+out
+.env
+.sync-manifest.json
+*.log
+local.json
+repos/
+public/data
+public/assets

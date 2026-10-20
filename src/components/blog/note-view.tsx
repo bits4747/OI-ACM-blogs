@@ -1,0 +1,554 @@
+'use client'
+
+import { useEffect, useMemo, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent } from 'react'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
+import {
+  ArrowLeft,
+  Calendar,
+  Eye,
+  EyeOff,
+  FileText,
+  Hash,
+  Link2,
+  ListTree,
+  Lock,
+  Minus,
+  Pencil,
+  Trash2,
+} from 'lucide-react'
+import { toast } from 'sonner'
+import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
+import { Skeleton } from '@/components/ui/skeleton'
+import { Switch } from '@/components/ui/switch'
+import {
+  fetchLinkIndex,
+  fetchNoteDetail,
+  type RefItem,
+} from '@/lib/api'
+import katex from 'katex'
+import { extractHeadings, splitHeadingSegments, type HeadingEntry } from '@/lib/obsidian'
+import { useBlog } from '@/lib/store'
+import { useT } from '@/lib/i18n'
+import { MarkdownRenderer } from '@/components/blog/markdown'
+
+/** 大纲条目文字：公式用 KaTeX 渲染，不再输出 $..$ 原符号 */
+function HeadingText({ text }: { text: string }) {
+  const segs = useMemo(() => splitHeadingSegments(text), [text])
+  return (
+    <>
+      {segs.map((s, i) =>
+        s.type === 'math' ? (
+          <span
+            key={i}
+            className="toc-math"
+            dangerouslySetInnerHTML={{
+              __html: renderMath(s.value),
+            }}
+          />
+        ) : (
+          <span key={i}>{s.value}</span>
+        )
+      )}
+    </>
+  )
+}
+
+function renderMath(tex: string): string {
+  try {
+    return katex.renderToString(tex, { throwOnError: false, displayMode: false })
+  } catch {
+    return tex
+  }
+}
+
+function RefList({
+  title,
+  items,
+  onOpen,
+}: {
+  title: string
+  items: RefItem[]
+  onOpen: (slug: string) => void
+}) {
+  const t = useT()
+  if (items.length === 0) return null
+  return (
+    <div className="mt-10 rounded-xl border border-border/70 bg-muted/30 p-4">
+      <h3 className="mb-3 flex items-center gap-1.5 text-sm font-semibold text-muted-foreground">
+        <Link2 className="size-3.5" aria-hidden />
+        {title}
+        <span className="text-xs opacity-60">{items.length}</span>
+      </h3>
+      <div className="flex flex-wrap gap-2">
+        {items.map((r) => (
+          <button
+            key={r.slug}
+            type="button"
+            onClick={() => onOpen(r.slug)}
+            className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-background px-3 py-1.5 text-sm transition-colors hover:border-primary/50 hover:text-primary"
+          >
+            {r.isPublic === false && <Lock className="size-3 text-muted-foreground" aria-hidden />}
+            {r.resolved === false && (
+              <span className="text-xs text-muted-foreground/70" title={t.notUploaded}>
+                {t.notCreated}
+              </span>
+            )}
+            {r.title}
+          </button>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+function PrivateLock({ slug }: { slug: string }) {
+  const goHome = useBlog((s) => s.goHome)
+  const t = useT()
+  return (
+    <div className="mx-auto max-w-md rounded-2xl border border-dashed p-10 text-center">
+      <div className="mx-auto flex size-14 items-center justify-center rounded-full bg-muted">
+        <Lock className="size-7 text-muted-foreground" aria-hidden />
+      </div>
+      <h2 className="mt-4 font-serif text-xl font-semibold">{t.notPublic}</h2>
+      <p className="mt-2 text-sm text-muted-foreground">{t.notPublicBody}</p>
+      <p className="mt-1 break-all text-xs text-muted-foreground/60">{slug}</p>
+      <Button variant="outline" className="mt-4" onClick={() => goHome()}>
+        {t.goHome}
+      </Button>
+    </div>
+  )
+}
+
+export function NoteView({ slug }: { slug: string }) {
+  const goHome = useBlog((s) => s.goHome)
+  const navigateToNote = useBlog((s) => s.navigateToNote)
+  const setTag = useBlog((s) => s.setTag)
+  const pendingHeading = useBlog((s) => s.pendingHeading)
+  const clearPendingHeading = useBlog((s) => s.clearPendingHeading)
+  const t = useT()
+  // 静态站是纯只读的：没有管理视图，frontmatter / 原文 Tab 一律不可用
+  const isAdmin = false
+  // 直接在初始化器里读取已保存的字号：effect 恢复会在 StrictMode 双挂载下
+  // 与持久化 effect 竞争（先被默认值覆写再读取），导致设置丢失。
+  // 本组件正文/控件只在客户端渲染（服务端走骨架屏分支），无水合不一致问题。
+  const [fontScale, setFontScale] = useState<number>(() => {
+    if (typeof window === 'undefined') return 1
+    try {
+      const v = Number(localStorage.getItem((FONT_SCALE_KEY)))
+      return v >= 0.8 && v <= 1.6 ? v : 1
+    } catch {
+      return 1
+    }
+  })
+  useEffect(() => {
+    try {
+      localStorage.setItem((FONT_SCALE_KEY), String(fontScale))
+    } catch {
+      /* 忽略 */
+    }
+  }, [fontScale])
+
+  const { data, isLoading, isError } = useQuery({
+    queryKey: ['note', slug, isAdmin],
+    queryFn: () => fetchNoteDetail(slug),
+  })
+
+  const { data: linkIndex } = useQuery({
+    queryKey: ['link-index', isAdmin],
+    queryFn: () => fetchLinkIndex(),
+  })
+
+  const queryClient = useQueryClient()
+
+  // 大纲数据必须在所有提前 return 之前计算（Rules of Hooks：每次渲染 hook 数量要一致）
+  const headings = useMemo(
+    () =>
+      data && data !== 'private' && data !== 'not_found'
+        ? extractHeadings(data.note.content)
+        : [],
+    [data],
+  )
+
+  useEffect(() => {
+    if (data && data !== 'private' && data !== 'not_found' && pendingHeading) {
+      // 多级标题路径（[[笔记#A#B]]）取最后一段作为跳转目标
+      const target = pendingHeading.split('#').pop() ?? pendingHeading
+      const id = target
+        .replace(/^#+/, '')
+        .trim()
+        .toLowerCase()
+        .replace(/\s+/g, '-')
+        .replace(/[^\p{L}\p{N}\-_]/gu, '')
+      clearPendingHeading()
+      if (id) {
+        setTimeout(() => {
+          document.getElementById(id)?.scrollIntoView({ behavior: 'smooth' })
+        }, 300)
+      }
+    }
+  }, [data, pendingHeading, clearPendingHeading])
+
+  // 静态站纯只读：没有"改公开 / 删除"这类写操作（那是全栈版的职责），
+  // 因此不定义 onTogglePublic / onDelete —— 下面的 isAdmin 恒为 false，
+  // 管理按钮与私密/原文 Tab 都不会渲染。
+
+  if (isLoading) {
+    return (
+      <div className="space-y-4">
+        <Skeleton className="h-8 w-2/3" />
+        <Skeleton className="h-4 w-1/3" />
+        <Skeleton className="h-64 w-full rounded-xl" />
+      </div>
+    )
+  }
+
+  if (data === 'private') return <PrivateLock slug={slug} />
+
+  if (isError || data === 'not_found' || !data) {
+    return (
+      <div className="rounded-xl border border-dashed p-10 text-center">
+        <FileText className="mx-auto size-10 text-muted-foreground/50" aria-hidden />
+        <p className="mt-3 font-medium">{t.notFound}</p>
+        <Button variant="outline" className="mt-4" onClick={() => goHome()}>
+          {t.goHome}
+        </Button>
+      </div>
+    )
+  }
+
+  const { note, backlinks, outlinks } = data
+  const fm = note.frontmatter
+
+  return (
+    <div className="mx-auto w-full max-w-[63.4rem]">
+      <article className="mx-auto w-full" style={{ '--note-fs': fontScale } as CSSProperties}>
+      <nav className="mb-4 flex items-center gap-2 text-sm text-muted-foreground" aria-label={t.back}>
+        <button
+          type="button"
+          onClick={() => goHome()}
+          className="inline-flex items-center gap-1 rounded px-1 py-0.5 transition-colors hover:text-foreground"
+        >
+          <ArrowLeft className="size-4" aria-hidden />
+          {t.back}
+        </button>
+        {note.folder && <span className="opacity-60">/ {note.folder} /</span>}
+        <span className="truncate font-medium text-foreground/80">{note.title}</span>
+      </nav>
+
+      <header className="mb-8">
+        <h1 className="font-serif text-3xl font-bold leading-tight tracking-tight sm:text-4xl">
+          {note.title}
+        </h1>
+        <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-muted-foreground">
+          <span className="inline-flex items-center gap-1">
+            <Calendar className="size-3.5" aria-hidden />
+            {(note.noteDate ?? note.updatedAt).slice(0, 10)}
+          </span>
+          <span className="inline-flex items-center gap-1">
+            <Pencil className="size-3.5" aria-hidden />
+            {t.words(note.wordCount)}
+          </span>
+          {note.tags.length > 0 && (
+            <span className="inline-flex flex-wrap items-center gap-1.5">
+              {note.tags.map((tag) => (
+                <Badge
+                  key={tag}
+                  variant="secondary"
+                  className="cursor-pointer font-normal hover:bg-primary/20"
+                  onClick={() => setTag(tag)}
+                >
+                  <Hash className="size-2.5" aria-hidden />
+                  {tag}
+                </Badge>
+              ))}
+            </span>
+          )}
+        </div>
+      </header>
+
+      {/* 静态站没有「源码」视图：原样输出 Markdown 是管理端的职责，这里只渲染正文。
+          曾用 Tabs 做过「阅读 / 源码」切换，但 isAdmin 恒为 false，源码那个 Tab 永远
+          是 disabled 的假切换，点不动反而让人以为坏了，故整个 Tabs 外壳一并去掉。 */}
+      <MarkdownRenderer raw={note.raw} linkIndex={linkIndex ?? null} currentSlug={slug} />
+
+      <footer className="mt-12 space-y-6 border-t pt-6">
+        {backlinks.length > 0 && (
+          <RefList title={t.backlinks} items={backlinks} onOpen={(s) => navigateToNote(s)} />
+        )}
+        {outlinks.length > 0 && (
+          <RefList title={t.outlinks} items={outlinks} onOpen={(s) => navigateToNote(s)} />
+        )}
+        {fm && Object.keys(fm).length > 0 && isAdmin && (
+          <details className="rounded-lg border bg-muted/30 p-3 text-sm">
+            <summary className="cursor-pointer font-medium text-muted-foreground">
+              {t.frontmatter}
+            </summary>
+            <pre className="mt-2 overflow-x-auto text-xs text-muted-foreground">
+              <code>{JSON.stringify(fm, null, 2)}</code>
+            </pre>
+          </details>
+        )}
+      </footer>
+      </article>
+      {headings.length > 1 && <NoteToc headings={headings} />}
+      <div className="fixed bottom-5 right-5 z-40 flex items-center gap-2 rounded-full border border-border bg-background/95 py-1.5 pl-2.5 pr-3 shadow-lg backdrop-blur">
+        <button
+          type="button"
+          className="rounded-full px-1.5 py-0.5 text-xs font-semibold text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+          onClick={() => setFontScale((s) => Math.max(0.8, Math.round((s - 0.05) * 100) / 100))}
+          aria-label={t.fontSmaller}
+        >
+          A−
+        </button>
+        <input
+          type="range"
+          min={0.8}
+          max={1.6}
+          step={0.01}
+          value={fontScale}
+          onChange={(e) => setFontScale(Number(e.target.value))}
+          className="w-28 accent-[var(--primary)]"
+          aria-label={t.fontReset}
+        />
+        <span className="min-w-11 text-center text-xs tabular-nums text-muted-foreground">
+          {Math.round(fontScale * 100)}%
+        </span>
+        <button
+          type="button"
+          className="rounded-full px-1.5 py-0.5 text-sm font-semibold text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+          onClick={() => setFontScale((s) => Math.min(1.6, Math.round((s + 0.05) * 100) / 100))}
+          aria-label={t.fontLarger}
+        >
+          A+
+        </button>
+      </div>
+    </div>
+  )
+}
+
+const TOC_POS_KEY = 'toc-pos'
+const TOC_COLLAPSED_KEY = 'toc-collapsed'
+const TOC_SIZE_KEY = 'toc-size'
+const FONT_SCALE_KEY = 'font-scale'
+const TOC_W_MIN = 180
+const TOC_W_MAX = 520
+const TOC_H_MIN = 140
+
+/**
+ * 大纲浮层：固定悬浮于页面上（不参与文章排版，不挤压正文宽度），
+ * 可拖动到任意位置、可折叠成小圆钮、右下角可拖拽调整宽高；
+ * 位置/尺寸/折叠状态记忆在 localStorage。
+ */
+function NoteToc({ headings }: { headings: HeadingEntry[] }) {
+  const t = useT()
+  const [activeId, setActiveId] = useState<string | null>(null)
+  const [pos, setPos] = useState<{ x: number; y: number } | null>(null)
+  const [size, setSize] = useState<{ w: number; h: number } | null>(null)
+  const [collapsed, setCollapsed] = useState(false)
+  const panelRef = useRef<HTMLDivElement | null>(null)
+
+  useEffect(() => {
+    const onScroll = () => {
+      let current: string | null = null
+      for (const h of headings) {
+        const el = document.getElementById(h.id)
+        if (el && el.getBoundingClientRect().top <= 140) current = h.id
+      }
+      setActiveId(current)
+    }
+    onScroll()
+    window.addEventListener('scroll', onScroll, { passive: true })
+    return () => window.removeEventListener('scroll', onScroll)
+  }, [headings])
+
+  // 恢复上次的浮动位置、尺寸与折叠状态
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem((TOC_POS_KEY))
+      if (raw) {
+        const v = JSON.parse(raw) as { x: number; y: number }
+        if (typeof v?.x === 'number' && typeof v?.y === 'number') setPos(v)
+      }
+      const rawSize = localStorage.getItem((TOC_SIZE_KEY))
+      if (rawSize) {
+        const v = JSON.parse(rawSize) as { w: number; h: number }
+        if (typeof v?.w === 'number' && typeof v?.h === 'number') setSize(v)
+      }
+      if (localStorage.getItem((TOC_COLLAPSED_KEY)) === '1') setCollapsed(true)
+    } catch {
+      /* 忽略 */
+    }
+  }, [])
+
+  // 位置/尺寸持久化
+  useEffect(() => {
+    if (!pos) return
+    try {
+      localStorage.setItem((TOC_POS_KEY), JSON.stringify(pos))
+    } catch {
+      /* 忽略 */
+    }
+  }, [pos])
+  useEffect(() => {
+    if (!size) return
+    try {
+      localStorage.setItem((TOC_SIZE_KEY), JSON.stringify(size))
+    } catch {
+      /* 忽略 */
+    }
+  }, [size])
+
+  // 窗口缩放时把面板拉回可视范围
+  useEffect(() => {
+    const onResize = () =>
+      setPos((p) => {
+        const el = panelRef.current
+        if (!p || !el) return p
+        return {
+          x: Math.min(p.x, Math.max(8, window.innerWidth - el.offsetWidth - 8)),
+          y: Math.min(p.y, Math.max(8, window.innerHeight - el.offsetHeight - 8)),
+        }
+      })
+    window.addEventListener('resize', onResize)
+    return () => window.removeEventListener('resize', onResize)
+  }, [])
+
+  const startDrag = (e: ReactPointerEvent) => {
+    if (e.button !== 0) return
+    const el = panelRef.current
+    if (!el || (e.target as HTMLElement).closest('button')) return
+    e.preventDefault()
+    const rect = el.getBoundingClientRect()
+    const dx = e.clientX - rect.left
+    const dy = e.clientY - rect.top
+    const move = (ev: PointerEvent) => {
+      setPos({
+        x: Math.min(Math.max(ev.clientX - dx, 8), window.innerWidth - el.offsetWidth - 8),
+        y: Math.min(Math.max(ev.clientY - dy, 8), window.innerHeight - el.offsetHeight - 8),
+      })
+    }
+    const up = () => {
+      window.removeEventListener('pointermove', move)
+      window.removeEventListener('pointerup', up)
+    }
+    window.addEventListener('pointermove', move)
+    window.addEventListener('pointerup', up)
+  }
+
+  const startResize = (e: ReactPointerEvent) => {
+    if (e.button !== 0) return
+    e.preventDefault()
+    e.stopPropagation()
+    const startX = e.clientX
+    const startY = e.clientY
+    const base = size ?? { w: 240, h: 460 }
+    const move = (ev: PointerEvent) => {
+      setSize({
+        w: Math.min(Math.max(base.w + (ev.clientX - startX), TOC_W_MIN), TOC_W_MAX),
+        h: Math.min(
+          Math.max(base.h + (ev.clientY - startY), TOC_H_MIN),
+          Math.max(window.innerHeight - 130, TOC_H_MIN)
+        ),
+      })
+    }
+    const up = () => {
+      window.removeEventListener('pointermove', move)
+      window.removeEventListener('pointerup', up)
+    }
+    window.addEventListener('pointermove', move)
+    window.addEventListener('pointerup', up)
+  }
+
+  const setCollapsedPersisted = (v: boolean) => {
+    setCollapsed(v)
+    try {
+      localStorage.setItem((TOC_COLLAPSED_KEY), v ? '1' : '0')
+    } catch {
+      /* 忽略 */
+    }
+  }
+
+  const floatStyle: CSSProperties = pos ? { left: pos.x, top: pos.y } : { right: 24, top: 88 }
+
+  const min = Math.min(...headings.map((h) => h.level))
+
+  const scrollTo = (id: string) => {
+    const el = document.getElementById(id)
+    if (!el) return
+    const y = el.getBoundingClientRect().top + window.scrollY - 96
+    window.scrollTo({ top: y, behavior: 'smooth' })
+  }
+
+  if (collapsed) {
+    return (
+      <button
+        type="button"
+        className="fixed z-40 flex items-center gap-1.5 rounded-full border border-border bg-background/95 px-3 py-1.5 text-xs font-medium text-muted-foreground shadow-lg backdrop-blur transition-colors hover:text-foreground"
+        style={floatStyle}
+        onClick={() => setCollapsedPersisted(false)}
+        aria-label={t.tocExpand}
+      >
+        <ListTree className="size-3.5" aria-hidden />
+        {t.toc}
+      </button>
+    )
+  }
+
+  return (
+    <div
+      ref={panelRef}
+      className="fixed z-40 w-60 rounded-xl border border-border bg-background/95 shadow-xl backdrop-blur"
+      style={{ ...(size ? { width: size.w } : {}), ...floatStyle }}
+    >
+      <div
+        className="flex cursor-grab select-none items-center gap-1.5 border-b px-3 py-2 active:cursor-grabbing"
+        onPointerDown={startDrag}
+      >
+        <ListTree className="size-3.5 shrink-0 text-muted-foreground" aria-hidden />
+        <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+          {t.toc}
+        </span>
+        <span className="text-[10px] text-muted-foreground/60">{headings.length}</span>
+        <button
+          type="button"
+          className="ml-auto rounded p-0.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+          onClick={() => setCollapsedPersisted(true)}
+          aria-label={t.tocCollapse}
+        >
+          <Minus className="size-3.5" aria-hidden />
+        </button>
+      </div>
+      <nav
+        className="toc mx-2 max-h-[min(62vh,460px)] overflow-y-auto py-2"
+        style={size ? { maxHeight: size.h } : undefined}
+        aria-label={t.toc}
+      >
+        <ul>
+          {headings.map((h, i) => (
+            <li key={h.id + '-' + i} style={{ paddingLeft: (h.level - min) * 12 }}>
+              <a
+                href={'#' + h.id}
+                className={'toc-item block truncate py-1 pr-2 text-xs leading-5 ' + (activeId === h.id ? 'toc-active' : '')}
+                title={h.text}
+                onClick={(e) => {
+                  e.preventDefault()
+                  scrollTo(h.id)
+                }}
+              >
+                <HeadingText text={h.text} />
+              </a>
+            </li>
+          ))}
+        </ul>
+      </nav>
+      <div
+        className="absolute bottom-0 right-0 z-10 size-4 cursor-nwse-resize touch-none"
+        onPointerDown={startResize}
+        role="presentation"
+      >
+        <div className="absolute bottom-1 right-1 size-2 rounded-[2px] border-b-2 border-r-2 border-muted-foreground/50" />
+      </div>
+    </div>
+  )
+}
