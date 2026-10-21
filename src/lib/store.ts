@@ -6,16 +6,21 @@ import { persist } from 'zustand/middleware'
 export type ViewKind = 'home' | 'note'
 
 /** 首次加载时从 URL 恢复视图（?note= / ?h= / ?tag=），保证深链与前进后退正确 */
-function initialViewFromUrl(): Pick<BlogState, 'view' | 'slug' | 'activeTag' | 'pendingHeading'> {
-  if (typeof window === 'undefined') return { view: 'home', slug: null, activeTag: null, pendingHeading: null }
+function initialViewFromUrl(): Pick<
+  BlogState,
+  'view' | 'slug' | 'activeTag' | 'pendingHeading' | 'pendingText'
+> {
+  if (typeof window === 'undefined')
+    return { view: 'home', slug: null, activeTag: null, pendingHeading: null, pendingText: null }
   const params = new URLSearchParams(window.location.search)
   const note = params.get('note')
   const tag = params.get('tag')
   // ?h= 是「打开时定位到某小节」，由浮窗「打开笔记 ↗」写入；消费一次即清除（note-view）
   const h = params.get('h')
-  if (note) return { view: 'note', slug: note, activeTag: null, pendingHeading: h }
-  if (tag) return { view: 'home', slug: null, activeTag: tag, pendingHeading: null }
-  return { view: 'home', slug: null, activeTag: null, pendingHeading: null }
+  if (note)
+    return { view: 'note', slug: note, activeTag: null, pendingHeading: h, pendingText: null }
+  if (tag) return { view: 'home', slug: null, activeTag: tag, pendingHeading: null, pendingText: null }
+  return { view: 'home', slug: null, activeTag: null, pendingHeading: null, pendingText: null }
 }
 
 /**
@@ -29,13 +34,16 @@ interface BlogState {
   view: ViewKind
   slug: string | null
   pendingHeading: string | null
+  /** 打开笔记后要滚到的正文片段（搜索命中正文时由结果行写入，消费一次即清除） */
+  pendingText: string | null
   activeTag: string | null
   search: string
-  navigateToNote: (slug: string, heading?: string) => void
+  navigateToNote: (slug: string, heading?: string, text?: string) => void
   goHome: (tag?: string | null) => void
   setTag: (tag: string | null) => void
   setSearch: (s: string) => void
   clearPendingHeading: () => void
+  clearPendingText: () => void
 }
 
 export const useBlog = create<BlogState>()(
@@ -46,12 +54,19 @@ export const useBlog = create<BlogState>()(
       ...initialViewFromUrl(),
       activeTag: null,
       search: '',
-      navigateToNote: (slug, heading) =>
-        set((s) => ({ view: 'note', slug, pendingHeading: heading ?? null, search: s.search })),
+      navigateToNote: (slug, heading, text) =>
+        set((s) => ({
+          view: 'note',
+          slug,
+          pendingHeading: heading ?? null,
+          pendingText: text ?? null,
+          search: s.search,
+        })),
       goHome: (tag) => set({ view: 'home', slug: null, activeTag: tag ?? null }),
       setTag: (tag) => set({ view: 'home', activeTag: tag }),
       setSearch: (s) => set({ search: s }),
       clearPendingHeading: () => set({ pendingHeading: null }),
+      clearPendingText: () => set({ pendingText: null }),
     }),
     {
       name: 'obsidian-blog-view',

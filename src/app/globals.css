@@ -147,6 +147,15 @@ h1, h2, h3, .markdown-body h1, .markdown-body h2, .markdown-body h3,
 .note-preview .markdown-body h2:first-child,
 .note-preview .markdown-body h3:first-child { margin-top: 0.2em; }
 
+/* ---------- 搜索命中正文时的定位高亮 ---------- */
+/* 用 CSS Custom Highlight API 给 Range 上色，不往正文里插 <mark> 节点：
+   正文是 React 渲染的，手动插入的节点会和它抢所有权。浏览器不支持时
+   只是少了底色，跳转本身照旧（见 src/lib/find-text.ts）。 */
+::highlight(blog-search-hit) {
+  background-color: color-mix(in srgb, var(--primary) 30%, transparent);
+  color: inherit;
+}
+
 /* ---------- Markdown 正文排版 ---------- */
 /* --note-fs 由阅读字体调节控件设置（0.8~1.6），标题/正文字号全部随它缩放 */
 .markdown-body {

@@ -39,6 +39,7 @@ import {
   type HeadingEntry,
 } from '@/lib/obsidian'
 import { useBlog } from '@/lib/store'
+import { clearSearchHighlight, jumpToText } from '@/lib/find-text'
 import { useT } from '@/lib/i18n'
 import { T } from '@/components/blog/t-text'
 import { MarkdownRenderer } from '@/components/blog/markdown'
@@ -206,6 +207,8 @@ export function NoteView({ slug }: { slug: string }) {
   const setTag = useBlog((s) => s.setTag)
   const pendingHeading = useBlog((s) => s.pendingHeading)
   const clearPendingHeading = useBlog((s) => s.clearPendingHeading)
+  const pendingText = useBlog((s) => s.pendingText)
+  const clearPendingText = useBlog((s) => s.clearPendingText)
   const t = useT()
   // 静态站是纯只读的：没有管理视图，frontmatter / 原文 Tab 一律不可用
   const isAdmin = false
@@ -290,6 +293,36 @@ export function NoteView({ slug }: { slug: string }) {
       setTimeout(step, 80)
     }
   }, [data, pendingHeading, clearPendingHeading])
+
+  // 换笔记 / 离开时清掉上一处的高亮（CSS Custom Highlight 是文档级的）。
+  // 必须排在下面「跳到正文片段」的 effect 之前：同一批 effect 按声明顺序执行，
+  // 反过来的话挂载时会先高亮再被这里清掉。
+  useEffect(() => {
+    clearSearchHighlight()
+    return () => clearSearchHighlight()
+  }, [slug])
+
+  // 搜索命中正文时，结果行会带一句话过来（pendingText）：打开后滚到那句话上并高亮。
+  // 与上面的 pendingHeading 一样，这里**不能 return cleanup** —— clearPendingText() 会把
+  // dep 同步置空触发 effect 重跑，React 先跑旧 cleanup 会反杀刚起的定时器。
+  useEffect(() => {
+    if (!data || data === 'private' || data === 'not_found' || !pendingText) return
+    clearPendingText()
+    // 正文根节点：避开悬浮预览里的 .markdown-body（那份是另一个组件）
+    const bodyRoot = () => {
+      const all = Array.from(document.querySelectorAll<HTMLElement>('.markdown-body'))
+      return all.find((el) => !el.closest('.note-preview')) ?? null
+    }
+    let tries = 0
+    const run = () => {
+      const root = bodyRoot()
+      // 数据已就绪，正文在同一次提交里就渲染完了，所以第一次基本都能同步命中；
+      // 没命中（嵌入的块还在懒加载 / 片段被标记切开）就再试几次。
+      if (root && jumpToText(root, pendingText)) return
+      if (tries++ < 20) setTimeout(run, 150)
+    }
+    run()
+  }, [data, pendingText, clearPendingText])
 
   if (isLoading) {
     return (

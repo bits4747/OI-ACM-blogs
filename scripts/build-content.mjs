@@ -604,7 +604,18 @@ const releaseTag = createHash('sha256').update(payload).digest('hex').slice(0, 1
 
 await fs.writeFile(
   path.join(PUBLIC, 'data', 'index.json'),
-  JSON.stringify({ notes: indexNotes, assets: linkIndexAssets, generatedAt: new Date().toISOString() })
+  JSON.stringify({
+    notes: indexNotes,
+    assets: linkIndexAssets,
+    // 把发布标记也写进索引：前端的 HTML/JS 会被 GitHub Pages 缓存 10 分钟，
+    // 旧页面里的 RELEASE_TAG 是旧的；只有从「刚拉下来的索引」里读到新标记，
+    // 才能立刻按新标记去取笔记，不用等缓存过期。
+    releaseTag,
+    // Actions 会给每个步骤自动注入 GITHUB_SHA，不需要改 workflow。
+    // 发布管理器用它判断「线上这一版是不是我刚推的那次提交」，比比时间更准（不受本机时钟影响）。
+    commit: process.env.GITHUB_SHA || '',
+    generatedAt: new Date().toISOString(),
+  })
 )
 
 // 全文搜索索引：slug → 纯文本。首页搜索框按需懒加载（只有真的输入时才拉），

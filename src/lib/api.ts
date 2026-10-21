@@ -93,19 +93,43 @@ function freshTag(): string {
   return new URLSearchParams(window.location.search).get('fresh') ?? ''
 }
 
+// 当前线上索引里的发布标记。构建期常量 RELEASE_TAG 只用于「还没拿到索引」的那一小段，
+// 以及索引里没有该字段的旧站点；正常情况下以索引里的值为准。
+let liveTag = ''
+
 function dataFetch(path: string): Promise<Response> {
   const sep = path.indexOf('?') >= 0 ? '&' : '?'
   const fresh = freshTag()
-  const suffix = 'v=' + RELEASE_TAG + (fresh ? '&fresh=' + encodeURIComponent(fresh) : '')
+  const suffix = 'v=' + (liveTag || RELEASE_TAG) + (fresh ? '&fresh=' + encodeURIComponent(fresh) : '')
   return fetch(withBase(path + sep + suffix), { cache: 'no-cache' })
+}
+
+/**
+ * 分钟级时间桶。
+ *
+ * 索引是「线上有没有新内容」的唯一入口，而 GitHub Pages 给静态文件的头是
+ * `Cache-Control: max-age=600`：浏览器与边缘节点都会直接用 10 分钟旧缓存，
+ * 期间连回源都不做。所以索引不能带固定 URL —— 换成每分钟才变一次的 URL：
+ * 跨分钟就是一次全新的 URL，边缘缓存立刻失效（最多旧 60 秒）；
+ * 同一分钟内的所有访客仍然共用同一份缓存，不会把 CDN 打穿。
+ */
+function indexBucket(): string {
+  return String(Math.floor(Date.now() / 60000))
 }
 
 function fetchIndex(): Promise<{ notes: NoteListItem[]; assets: string[] }> {
   if (!indexPromise) {
-    indexPromise = dataFetch('/data/index.json')
+    const fresh = freshTag()
+    const q = '?b=' + indexBucket() + (fresh ? '&fresh=' + encodeURIComponent(fresh) : '')
+    // 注意不能用 dataFetch：它的 URL 里带着 liveTag，而 liveTag 正是要从这个响应里读出来的。
+    indexPromise = fetch(withBase('/data/index.json' + q), { cache: 'no-cache' })
       .then((r) => {
         if (!r.ok) throw new Error(tNow().indexFailed)
         return r.json()
+      })
+      .then((data: { notes: NoteListItem[]; assets: string[]; releaseTag?: string }) => {
+        if (data && typeof data.releaseTag === 'string' && data.releaseTag) liveTag = data.releaseTag
+        return { notes: data.notes || [], assets: data.assets || [] }
       })
       .catch((e) => {
         // 失败不要污染单例，否则整站会一直卡在报错态

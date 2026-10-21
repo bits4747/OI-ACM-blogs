@@ -1,4 +1,4 @@
-'use client'
+﻿'use client'
 
 import { memo, useEffect, useMemo, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
@@ -32,14 +32,23 @@ function useColumnCount() {
 }
 
 /** 紧凑列表行：标题 + 日期/状态，一行搞定 */
-const NoteRow = memo(function NoteRow({ note, snippet }: { note: NoteListItem; snippet?: string }) {
+const NoteRow = memo(function NoteRow({
+  note,
+  snippet,
+  hitText,
+}: {
+  note: NoteListItem
+  snippet?: string
+  /** 命中的是正文时带上搜索词：打开后直接滚到那句话，而不是从头读 */
+  hitText?: string
+}) {
   const navigateToNote = useBlog((s) => s.navigateToNote)
   const t = useT()
   return (
     <li className="break-inside-avoid">
       <button
         type="button"
-        onClick={() => navigateToNote(note.slug)}
+        onClick={() => navigateToNote(note.slug, undefined, hitText)}
         className="group flex w-full items-start gap-2 rounded-md px-2.5 py-1.5 text-left transition-colors hover:bg-muted/70"
         aria-label={t.openNote(note.title)}
       >
@@ -109,6 +118,9 @@ export function HomeView() {
     if (activeTag) list = list.filter((n) => n.tags.includes(activeTag))
     return { visible: list, snippets: snips }
   }, [notes, q, activeTag, bodyIndex])
+
+  // 命中正文（有 snippet）才带跳转词：只命中标题 / 路径时正文里没有可跳的位置
+  const hitOf = (slug: string) => (q && snippets.has(slug) ? search.trim() : undefined)
 
   const tagCounts = useMemo(() => {
     const m = new Map<string, number>()
@@ -306,7 +318,7 @@ export function HomeView() {
           {!collapsed[''] && (
             <ul className="columns-1 gap-x-2 border-t border-border/60 px-1.5 py-1.5 sm:columns-2 xl:columns-3">
               {rootNotes.map((n) => (
-                <NoteRow key={n.slug} note={n} snippet={snippets.get(n.slug)} />
+                <NoteRow key={n.slug} note={n} snippet={snippets.get(n.slug)} hitText={hitOf(n.slug)} />
               ))}
             </ul>
           )}
@@ -347,7 +359,7 @@ export function HomeView() {
                     {!isCollapsed && (
                       <ul className="border-t border-border/60 px-1.5 py-1.5">
                         {items.map((n) => (
-                          <NoteRow key={n.slug} note={n} snippet={snippets.get(n.slug)} />
+                          <NoteRow key={n.slug} note={n} snippet={snippets.get(n.slug)} hitText={hitOf(n.slug)} />
                         ))}
                       </ul>
                     )}
