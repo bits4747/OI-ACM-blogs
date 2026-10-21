@@ -668,16 +668,31 @@ function NoteToc({ headings }: { headings: HeadingEntry[] }) {
 
   if (collapsed) {
     return (
-      <button
-        type="button"
-        className="fixed z-40 flex items-center gap-1.5 rounded-full border border-border bg-background/95 px-3 py-1.5 text-xs font-medium text-muted-foreground shadow-lg backdrop-blur transition-colors hover:text-foreground"
+      <div
+        ref={panelRef}
+        className="fixed z-40 flex items-center gap-1 rounded-full border border-border bg-background/95 py-1 pl-3 pr-1 shadow-lg backdrop-blur"
         style={floatStyle}
-        onClick={() => setCollapsedPersisted(false)}
-        aria-label={t.tocExpand}
       >
-        <ListTree className="size-3.5" aria-hidden />
-        <T k="toc" />
-      </button>
+        <button
+          type="button"
+          className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground"
+          onClick={() => setCollapsedPersisted(false)}
+          aria-label={t.tocExpand}
+        >
+          <ListTree className="size-3.5" aria-hidden />
+          <T k="toc" />
+        </button>
+        {/* 收起态也要能挪位置：同样的四向十字手柄 */}
+        <div
+          className="flex size-5 shrink-0 cursor-move touch-none items-center justify-center rounded-full text-muted-foreground/60 transition-colors hover:bg-muted hover:text-foreground"
+          onPointerDown={startDrag}
+          title={t.tocDrag}
+          aria-hidden
+          role="presentation"
+        >
+          <Move className="size-3.5" />
+        </div>
+      </div>
     )
   }
 
