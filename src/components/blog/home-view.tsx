@@ -1,6 +1,6 @@
 'use client'
 
-import { memo, useMemo, useState } from 'react'
+import { memo, useEffect, useMemo, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import {
   ChevronRight,
@@ -19,12 +19,24 @@ import { T } from '@/components/blog/t-text'
 
 const FOLDERS_COLLAPSED_KEY = 'collapsed-folders'
 
+/** 大屏 3 列 / 中屏 2 列 / 小屏 1 列。文件夹按列独立排布，展开一个不影响其它列。 */
+function useColumnCount() {
+  const [n, setN] = useState(1)
+  useEffect(() => {
+    const calc = () => setN(window.innerWidth >= 1280 ? 3 : window.innerWidth >= 1024 ? 2 : 1)
+    calc()
+    window.addEventListener('resize', calc)
+    return () => window.removeEventListener('resize', calc)
+  }, [])
+  return n
+}
+
 /** 紧凑列表行：标题 + 日期/状态，一行搞定 */
 const NoteRow = memo(function NoteRow({ note, snippet }: { note: NoteListItem; snippet?: string }) {
   const navigateToNote = useBlog((s) => s.navigateToNote)
   const t = useT()
   return (
-    <li>
+    <li className="break-inside-avoid">
       <button
         type="button"
         onClick={() => navigateToNote(note.slug)}
@@ -104,7 +116,8 @@ export function HomeView() {
     return [...m.entries()].sort((a, b) => b[1] - a[1]).slice(0, 24)
   }, [notes])
 
-  const folders = useMemo(() => {
+  // 未分组（库根目录下的笔记）单独一块，不混进文件夹列
+  const { rootNotes, folders } = useMemo(() => {
     const m = new Map<string, NoteListItem[]>()
     for (const n of visible) {
       const key = n.folder || ''
@@ -112,7 +125,9 @@ export function HomeView() {
       arr.push(n)
       m.set(key, arr)
     }
-    return [...m.entries()].sort((a, b) => (a[0] < b[0] ? -1 : 1))
+    const root = m.get('') ?? []
+    m.delete('')
+    return { rootNotes: root, folders: [...m.entries()].sort((a, b) => (a[0] < b[0] ? -1 : 1)) }
   }, [visible])
 
   // 文件夹折叠状态（记忆在 localStorage，收起的文件夹刷新后仍保持）
@@ -136,13 +151,27 @@ export function HomeView() {
       persist(next)
       return next
     })
-  const allCollapsed = folders.length > 0 && folders.every(([f]) => collapsed[f])
+  // 「未分组」也参与一键折叠，所以把它的 key（''）一起算进分组集合
+  const sectionKeys = useMemo(
+    () => [...(rootNotes.length > 0 ? [''] : []), ...folders.map(([f]) => f)],
+    [rootNotes, folders]
+  )
+  const allCollapsed = sectionKeys.length > 0 && sectionKeys.every((f) => collapsed[f])
   const toggleAll = () => {
     const next: Record<string, boolean> = {}
-    if (!allCollapsed) for (const [f] of folders) next[f] = true
+    if (!allCollapsed) for (const f of sectionKeys) next[f] = true
     setCollapsed(next)
     persist(next)
   }
+
+  // 文件夹按列分配：第 i 个文件夹固定落在第 i % N 列，展开/收起只影响它自己那一列
+  const cols = useColumnCount()
+  const folderColumns = useMemo(() => {
+    const n = Math.max(1, Math.min(3, cols))
+    const arr: [string, NoteListItem[]][][] = Array.from({ length: n }, () => [])
+    folders.forEach((entry, i) => arr[i % n].push(entry))
+    return arr
+  }, [folders, cols])
 
   return (
     <div>
@@ -157,7 +186,7 @@ export function HomeView() {
             {search.trim() && <T k="filteredCount" args={[visible.length]} />}
           </span>
         )}
-        {folders.length > 0 && (
+        {sectionKeys.length > 0 && (
           <button
             type="button"
             onClick={toggleAll}
@@ -252,45 +281,81 @@ export function HomeView() {
         </div>
       )}
 
-      {/* 文件夹分栏（大屏 3 栏 / 中屏 2 栏），文件夹名加大 */}
+      {/* 未分组：单独一块放在文件夹列之上，笔记按列排（没有分组习惯时就是全部笔记） */}
+      {rootNotes.length > 0 && (
+        <section className="mb-4 overflow-hidden rounded-xl border border-border/70 bg-card">
+          <button
+            type="button"
+            onClick={() => toggleFolder('')}
+            className="flex w-full items-center gap-2 px-4 py-3 text-left transition-colors hover:bg-muted/60"
+            aria-expanded={!collapsed['']}
+            aria-label={t.uncategorized + (collapsed[''] ? ' — ' + t.expandAll : ' — ' + t.collapseAll)}
+          >
+            <ChevronRight
+              className={'size-4 shrink-0 text-muted-foreground transition-transform ' + (collapsed[''] ? '' : 'rotate-90')}
+              aria-hidden
+            />
+            <FileText className="size-4 shrink-0 text-primary/80" aria-hidden />
+            <span className="min-w-0 flex-1 truncate font-serif text-base font-semibold text-foreground">
+              <T k="uncategorized" />
+            </span>
+            <span className="shrink-0 text-xs tabular-nums text-muted-foreground">
+              <T k="folderCount" args={[rootNotes.length]} />
+            </span>
+          </button>
+          {!collapsed[''] && (
+            <ul className="columns-1 gap-x-2 border-t border-border/60 px-1.5 py-1.5 sm:columns-2 xl:columns-3">
+              {rootNotes.map((n) => (
+                <NoteRow key={n.slug} note={n} snippet={snippets.get(n.slug)} />
+              ))}
+            </ul>
+          )}
+        </section>
+      )}
+
+      {/* 文件夹分栏：每列是独立的纵向流，展开一个文件夹只撑高它自己那一列，其它列不动、也不留白 */}
       {folders.length > 0 && (
-        <div className="grid items-start gap-4 lg:grid-cols-2 xl:grid-cols-3">
-          {folders.map(([folder, items]) => {
-            const isCollapsed = !!collapsed[folder]
-            return (
-              <section
-                key={folder || '(root)'}
-                className="overflow-hidden rounded-xl border border-border/70 bg-card"
-              >
-                <button
-                  type="button"
-                  onClick={() => toggleFolder(folder)}
-                  className="flex w-full items-center gap-2 px-4 py-3 text-left transition-colors hover:bg-muted/60"
-                  aria-expanded={!isCollapsed}
-                  aria-label={(folder || t.uncategorized) + (isCollapsed ? ' — ' + t.expandAll : ' — ' + t.collapseAll)}
-                >
-                  <ChevronRight
-                    className={'size-4 shrink-0 text-muted-foreground transition-transform ' + (isCollapsed ? '' : 'rotate-90')}
-                    aria-hidden
-                  />
-                  <Folder className="size-4 shrink-0 text-primary/80" aria-hidden />
-                  <span className="min-w-0 flex-1 truncate font-serif text-base font-semibold text-foreground">
-                    {folder || <T k="uncategorized" />}
-                  </span>
-                  <span className="shrink-0 text-xs tabular-nums text-muted-foreground">
-                    <T k="folderCount" args={[items.length]} />
-                  </span>
-                </button>
-                {!isCollapsed && (
-                  <ul className="border-t border-border/60 px-1.5 py-1.5">
-                    {items.map((n) => (
-                      <NoteRow key={n.slug} note={n} snippet={snippets.get(n.slug)} />
-                    ))}
-                  </ul>
-                )}
-              </section>
-            )
-          })}
+        <div className="flex items-start gap-4">
+          {folderColumns.map((column, ci) => (
+            <div key={ci} className="flex min-w-0 flex-1 flex-col gap-4">
+              {column.map(([folder, items]) => {
+                const isCollapsed = !!collapsed[folder]
+                return (
+                  <section
+                    key={folder}
+                    className="overflow-hidden rounded-xl border border-border/70 bg-card"
+                  >
+                    <button
+                      type="button"
+                      onClick={() => toggleFolder(folder)}
+                      className="flex w-full items-center gap-2 px-4 py-3 text-left transition-colors hover:bg-muted/60"
+                      aria-expanded={!isCollapsed}
+                      aria-label={folder + (isCollapsed ? ' — ' + t.expandAll : ' — ' + t.collapseAll)}
+                    >
+                      <ChevronRight
+                        className={'size-4 shrink-0 text-muted-foreground transition-transform ' + (isCollapsed ? '' : 'rotate-90')}
+                        aria-hidden
+                      />
+                      <Folder className="size-4 shrink-0 text-primary/80" aria-hidden />
+                      <span className="min-w-0 flex-1 truncate font-serif text-base font-semibold text-foreground">
+                        {folder}
+                      </span>
+                      <span className="shrink-0 text-xs tabular-nums text-muted-foreground">
+                        <T k="folderCount" args={[items.length]} />
+                      </span>
+                    </button>
+                    {!isCollapsed && (
+                      <ul className="border-t border-border/60 px-1.5 py-1.5">
+                        {items.map((n) => (
+                          <NoteRow key={n.slug} note={n} snippet={snippets.get(n.slug)} />
+                        ))}
+                      </ul>
+                    )}
+                  </section>
+                )
+              })}
+            </div>
+          ))}
         </div>
       )}
     </div>

@@ -43,7 +43,7 @@ export const DICT = {
     emptyVaultHint: '在发布管理器里把笔记标为公开即可',
     emptyHint: '试试更换关键词或清除标签过滤',
     folderCount: (n: number) => `${n} 篇`,
-    uncategorized: '未分类',
+    uncategorized: '未分组',
     siteFallback: '笔记',
     openNote: (t: string) => `打开笔记 ${t}`,
     // 笔记页
@@ -137,7 +137,7 @@ export const DICT = {
     emptyVaultHint: 'Mark notes as public in the publish manager',
     emptyHint: 'Try different keywords or clear the tag filter',
     folderCount: (n: number) => (n === 1 ? '1 note' : `${n} notes`),
-    uncategorized: 'Uncategorized',
+    uncategorized: 'Ungrouped',
     siteFallback: 'Notes',
     openNote: (t: string) => `Open note ${t}`,
     notCreated: 'Not created',
