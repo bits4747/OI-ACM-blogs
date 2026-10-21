@@ -2,14 +2,16 @@
 
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
+import { DEFAULT_LANG, LANG_STORAGE_KEY, type Lang } from './lang'
+
+export type { Lang }
+export { DEFAULT_LANG }
 
 /**
  * 界面语言。**只翻译界面文案，不碰博客内容**——笔记标题、正文、文件夹名一律原样显示。
  *
- * 默认跟随浏览器语言：中文环境给 zh，其它给 en。
- * 用户手动切换后写进 localStorage，之后不再跟随系统。
+ * 默认语言构建期固定（见 lib/lang.ts），用户手动切换后写进 localStorage。
  */
-export type Lang = 'zh' | 'en'
 
 export const DICT = {
   zh: {
@@ -76,6 +78,21 @@ export const DICT = {
     vaultDriven: 'Obsidian Vault 驱动',
     // 其他
     indexFailed: '加载笔记索引失败',
+    // 正文渲染
+    copy: '复制',
+    copied: '已复制',
+    copyCode: '复制代码',
+    attachmentPreview: '附件预览',
+    unresolvedTip: '该笔记尚未创建，点击搜索相关笔记',
+    // 引用/嵌入
+    sectionMissing: '未找到被引用的小节，显示全文：',
+    embedCycle: '循环引用',
+    embedTooDeep: '嵌套过深，未展开',
+    // 笔记页错误态
+    noteLoadFailed: '笔记加载失败，请检查网络后重试',
+    retry: '重试',
+    close: '关闭',
+    tocDrag: '按住拖动大纲',
     // Obsidian callout 的默认标题（笔记里写 > [!note] 却没给标题时用）
     calloutLabel: {
       note: '笔记',
@@ -150,6 +167,18 @@ export const DICT = {
     openNoteNewTab: 'Open this note in a new tab',
     vaultDriven: 'Powered by Obsidian Vault',
     indexFailed: 'Failed to load the note index',
+    copy: 'Copy',
+    copied: 'Copied',
+    copyCode: 'Copy code',
+    attachmentPreview: 'Attachment preview',
+    unresolvedTip: 'This note has not been created yet — click to search related notes',
+    sectionMissing: 'Referenced section not found — showing the full note:',
+    embedCycle: 'Circular embed',
+    embedTooDeep: 'Nested too deeply, not expanded',
+    noteLoadFailed: 'Failed to load the note. Check your connection and retry.',
+    retry: 'Retry',
+    close: 'Close',
+    tocDrag: 'Press and drag to move the outline',
     calloutLabel: {
       note: 'Note',
       abstract: 'Abstract',
@@ -170,12 +199,14 @@ export const DICT = {
 
 export type Dict = (typeof DICT)['zh']
 
-/** 按浏览器语言猜一个默认值：中文环境 → zh，其余 → en */
-function guessLang(): Lang {
-  if (typeof navigator === 'undefined') return 'zh'
-  const langs = navigator.languages?.length ? navigator.languages : [navigator.language]
-  return langs.some((l) => l && l.toLowerCase().startsWith('zh')) ? 'zh' : 'en'
-}
+/**
+ * 默认语言固定（构建期决定，见 lib/lang.ts），不按浏览器语言自动猜。
+ *
+ * 原因：静态导出的 HTML 是构建时就烧死的。若首屏按 zh 渲染、水合后再翻成 en，
+ * 非中文用户会看到整页文字「闪一下」换语言。现在改成：默认语言固定，用户手动
+ * 切换后记在 localStorage，由 layout 的预绘制脚本在首帧前设好 <html data-lang>，
+ * 界面文案从第一帧起就是对的（中英两份都在 HTML 里，CSS 只显示一份）。
+ */
 
 interface LangState {
   lang: Lang
@@ -185,18 +216,35 @@ interface LangState {
   toggle: () => void
 }
 
+/** 把语言同步到 <html data-lang/lang>：CSS 靠 data-lang 选显示哪一份文案，
+ *  lang 供屏幕阅读器与搜索引擎判断语言。首帧由 layout 的预绘制脚本设置，
+ *  这里负责用户切换后（以及 persist 恢复后）保持一致。 */
+function applyLangToDocument(lang: Lang) {
+  if (typeof document === 'undefined') return
+  const root = document.documentElement
+  root.dataset.lang = lang
+  root.lang = lang === 'en' ? 'en' : 'zh-CN'
+}
+
 export const useLang = create<LangState>()(
   persist(
     (set, get) => ({
-      lang: guessLang(),
+      lang: DEFAULT_LANG,
       picked: false,
-      setLang: (l) => set({ lang: l, picked: true }),
-      toggle: () => set({ lang: get().lang === 'zh' ? 'en' : 'zh', picked: true }),
+      setLang: (l) => {
+        set({ lang: l, picked: true })
+        applyLangToDocument(l)
+      },
+      toggle: () => {
+        const next: Lang = get().lang === 'zh' ? 'en' : 'zh'
+        set({ lang: next, picked: true })
+        applyLangToDocument(next)
+      },
     }),
     {
-      name: 'obsidian-blog-lang',
+      name: LANG_STORAGE_KEY,
       partialize: (s) => ({ lang: s.picked ? s.lang : undefined, picked: s.picked }),
-      // 没手动选过时不恢复，让 guessLang() 生效
+      // 没手动选过时不恢复，让 DEFAULT_LANG 生效
       merge: (persisted, current) => {
         const p = (persisted ?? {}) as Partial<LangState>
         return p.picked ? { ...current, ...p } : current
@@ -204,6 +252,12 @@ export const useLang = create<LangState>()(
     }
   )
 )
+
+// persist 从 localStorage 恢复时不经过 setLang，用订阅兜住这种情况。
+useLang.subscribe((s, prev) => {
+  if (s.lang !== prev.lang) applyLangToDocument(s.lang)
+})
+applyLangToDocument(useLang.getState().lang)
 
 /** 取当前语言的文案表。在组件里用 `const t = useT()`。 */
 export function useT(): Dict {

@@ -132,9 +132,16 @@ if (typeof document !== 'undefined') {
   indexPromise = null
 }
 
-async function fetchNoteFile(slug: string): Promise<NoteFile> {
+/**
+ * 拉单篇笔记。
+ * 返回 null 表示「真的没有这篇」（404）；其余失败（500/502/网络中断/超时）**必须抛错**，
+ * 由调用方区分成「加载失败，可重试」而不是「笔记不存在」。
+ * 原先任何 !res.ok 都返回空笔记，导致 500 和超时都显示成「笔记不存在或已被删除」。
+ */
+async function fetchNoteFile(slug: string): Promise<NoteFile | null> {
   const res = await dataFetch('/data/notes/' + slugFile(slug) + '.json')
-  if (!res.ok) return { note: emptyDetail(slug), backlinks: [], outlinks: [] }
+  if (res.status === 404) return null
+  if (!res.ok) throw new Error('HTTP ' + res.status)
   return (await res.json()) as NoteFile
 }
 
@@ -178,8 +185,27 @@ export async function fetchNoteDetail(
   slug: string
 ): Promise<{ note: NoteDetail; backlinks: RefItem[]; outlinks: RefItem[] } | 'private' | 'not_found'> {
   const file = await fetchNoteFile(slug)
-  if (!file.note.raw) return 'not_found'
+  if (!file || !file.note.raw) return 'not_found'
   return file
+}
+
+/** 全文搜索索引：slug → 纯文本（构建时生成，只有真的开始搜索时才拉） */
+let searchPromise: Promise<Record<string, string>> | null = null
+export function fetchSearchIndex(): Promise<Record<string, string>> {
+  if (!searchPromise) {
+    searchPromise = dataFetch('/data/search.json')
+      .then((r) => {
+        if (!r.ok) throw new Error(tNow().indexFailed)
+        return r.json() as Promise<{ notes: Record<string, string> }>
+      })
+      .then((j) => j.notes ?? {})
+      .catch((e) => {
+        // 失败不要污染单例，下次输入还能重试
+        searchPromise = null
+        throw e
+      })
+  }
+  return searchPromise
 }
 
 export async function fetchLinkIndex(): Promise<LinkIndex> {

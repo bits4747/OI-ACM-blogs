@@ -9,10 +9,142 @@ export interface ParsedNote {
 export function parseNote(raw: string): ParsedNote {
   try {
     const m = matter(raw)
-    return { data: (m.data ?? {}) as Record<string, unknown>, content: m.content ?? '' }
+    return { data: (m.data ?? {}) as Record<string, unknown>, content: repairObsidianArtifacts(m.content ?? '') }
   } catch {
-    return { data: {}, content: raw }
+    return { data: {}, content: repairObsidianArtifacts(raw) }
   }
+}
+
+// ---------- wikilink 扫描 ----------
+
+export interface WikiToken {
+  /** 起始下标（含 ! 或 [[） */
+  start: number
+  /** 结束下标（不含） */
+  end: number
+  isEmbed: boolean
+  /** 括号内的原文：`目标#标题|别名` */
+  inner: string
+}
+
+/**
+ * 扫描文本里的 [[...]] / ![[...]]，**允许内部出现成对的方括号**。
+ *
+ * 不能再用 /\[\[([^\[\]]+?)\]\]/ 这种正则：本库的标题经常本身是 markdown 链接，
+ * 例如 `[[CSP-S#[P8820 [CSP-S 2022] 数据传输](https://…)]]`，
+ * 正则会在第一个 ] 处截断，整条引用失效（真实踩过）。
+ */
+export function scanWikilinks(text: string): WikiToken[] {
+  const out: WikiToken[] = []
+  let i = 0
+  while (i < text.length) {
+    const isEmbed = text[i] === '!' && text[i + 1] === '[' && text[i + 2] === '['
+    const plain = text[i] === '[' && text[i + 1] === '['
+    if (!isEmbed && !plain) {
+      i += 1
+      continue
+    }
+    const open = i + (isEmbed ? 3 : 2)
+    let j = open
+    let depth = 0
+    let end = -1
+    while (j < text.length) {
+      const ch = text[j]
+      if (ch === '\n') break
+      if (ch === '\\') {
+        j += 2
+        continue
+      }
+      if (ch === '[') {
+        depth += 1
+        j += 1
+        continue
+      }
+      if (ch === ']') {
+        if (depth > 0) {
+          depth -= 1
+          j += 1
+          continue
+        }
+        if (text[j + 1] === ']') {
+          end = j + 2
+          break
+        }
+        j += 1
+        continue
+      }
+      j += 1
+    }
+    if (end < 0) {
+      i = open
+      continue
+    }
+    out.push({ start: i, end, isEmbed, inner: text.slice(open, end - 2) })
+    i = end
+  }
+  return out
+}
+
+/**
+ * markdown 链接 `[文字](url)` → `文字`。支持一层嵌套方括号
+ * （如 `[P3216 [HNOI2011]数学作业](url)`），由内向外反复剥。
+ */
+const MD_LINK_RE = /\[([^\[\]]*(?:\[[^\[\]]*\][^\[\]]*)*)\]\([^()]*\)/g
+export function stripMdLinks(input: string): string {
+  let cur = input
+  let prev: string
+  let guard = 0
+  do {
+    prev = cur
+    cur = cur.replace(MD_LINK_RE, '$1')
+  } while (cur !== prev && ++guard < 8)
+  return cur
+}
+
+/**
+ * 修复 Obsidian / 编辑器产生的一类坏引用：把 markdown 链接塞进了 wikilink。
+ *
+ * 形如 `![[显示文字](网址)](笔记.md#标题)`（没有闭合的 `]]`），本库里真实存在
+ * （DP/DDP.md 最后一行）。统一改写成 `![[笔记.md#标题|显示文字]]`。
+ * 只处理「整行就是这一条」且没有 `]]` 的行，避免误伤正常内容。
+ *
+ * 另外，**任何** wikilink 内部只要含 markdown 链接语法都要剥成纯文字：
+ * mdast 解析阶段 `[文字](url)` 会先变成 link 节点，把 `[[` 与 `]]` 拆到不同
+ * 节点里，后面的 wikilink 扫描就再也拼不回来了（Obsidian 复制「标题本身是
+ * 链接」的引用正好是这种形态）。extractHeadingSection 匹配标题时同样会剥掉
+ * 链接语法，所以这里剥完两边仍然对得上。
+ */
+export function repairObsidianArtifacts(content: string): string {
+  if (!content.includes('[[')) return content
+  const ARTIFACT = /^(\s*)(!?)\[\[(.+?)\]\(([^)]*)\)\]\((.+)\)\s*$/
+  let inFence = false
+  const lines = content.split('\n').map((line) => {
+    // 代码块里的 [[ ]] 是示例代码，不是引用
+    if (/^\s*(```|~~~)/.test(line)) {
+      inFence = !inFence
+      return line
+    }
+    if (inFence || !line.includes('[[')) return line
+    let l = line
+    if (!l.includes(']]')) {
+      const m = ARTIFACT.exec(l)
+      if (m) {
+        const [, indent, bang, label, , target] = m
+        l = `${indent}${bang}[[${target.trim()}|${label.trim()}]]`
+      }
+    }
+    const toks = scanWikilinks(l)
+    if (toks.length === 0) return l
+    let res = ''
+    let last = 0
+    for (const tk of toks) {
+      res += l.slice(last, tk.start)
+      res += (tk.isEmbed ? '!' : '') + '[[' + stripMdLinks(tk.inner) + ']]'
+      last = tk.end
+    }
+    return res + l.slice(last)
+  })
+  return lines.join('\n')
 }
 
 /** 路径归一化：统一斜杠、去 ./ 前缀 */
@@ -92,9 +224,28 @@ export function extractTags(data: Record<string, unknown>, content: string): str
   return [...out].slice(0, 30)
 }
 
-/** 标题锚点 id（中英混合）——大纲与渲染组件共用同一算法 */
+/** 标题文本清理：剥掉 wikilink / markdown 链接语法，只留可见文字（大纲展示与锚点共用） */
+export function stripHeadingMarkup(input: string): string {
+  let s = input
+  // wikilink：[[目标|别名]] → 别名，[[目标]] → 目标
+  s = s.replace(/\[\[([^\]|]*)\|([^\]]*)\]\]/g, '$2')
+  s = s.replace(/\[\[([^\]]+)\]\]/g, '$1')
+  // markdown 链接 [文字](url)：支持一层嵌套方括号（如 [P3216 [HNOI2011]数学作业](url)），
+  // 多层嵌套时由内向外反复剥，结果与浏览器渲染出的可见文本一致（保证锚点 id 对得上）
+  s = stripMdLinks(s)
+  // 行尾悬挂的块引用 ID（^xxxxxx）也不进大纲
+  s = s.replace(/\s+\^[A-Za-z0-9-]{4,}\s*$/, '')
+  return s.trim()
+}
+
+/**
+ * 标题匹配用的归一化文本：URL 解码 → 剥掉 markdown 语法 → 压空白 → 小写。
+ *
+ * Obsidian 写出的 `[[笔记#标题]]` 里，标题可能是原文，也可能是百分号编码过的，
+ * 而且标题本身还可能是个 markdown 链接。三者必须能对上同一个标题。
+ */
 export function headingIdOf(text: string): string {
-  const id = text
+  const id = String(text ?? '')
     .replace(/#/g, '')
     .trim()
     .toLowerCase()
@@ -104,28 +255,94 @@ export function headingIdOf(text: string): string {
   return id || 'h'
 }
 
+export function normalizeHeadingText(input: string): string {
+  let s = String(input ?? '')
+  try {
+    s = decodeURIComponent(s)
+  } catch {
+    /* 含非法 % 序列时保留原样 */
+  }
+  s = stripHeadingMarkup(s)
+  s = s
+    .replace(/[`*_~]/g, ' ')
+    .replace(/[#^]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .toLowerCase()
+  return s
+}
+
+/** 由任意标题原文算出锚点 id（与 extractHeadings / remark 阶段共用同一算法） */
+export function headingIdFromText(text: string): string {
+  return headingIdOf(stripHeadingMarkup(text))
+}
+
+/** 标题的**展示**文字：URL 解码 + 剥掉 markdown/wikilink 语法（保留原大小写） */
+export function headingDisplayText(input: string): string {
+  let s = String(input ?? '')
+  try {
+    s = decodeURIComponent(s)
+  } catch {
+    /* 含非法 % 序列时保留原样 */
+  }
+  return stripHeadingMarkup(s).trim()
+}
+
+/**
+ * 提取某一小节的正文（Obsidian 的 `![[笔记#标题]]` / 悬浮预览都用它）。
+ * 区间 = 该标题的下一行 → 下一个「同级或更高级」标题之前，
+ * 因此不会把后面没有引用的内容一起带出来。
+ */
+export function extractHeadingSection(content: string, heading: string): string | null {
+  const want = normalizeHeadingText((heading || '').split('#').pop() || heading)
+  if (!want) return null
+  const lines = content.split('\n')
+  const heads: { idx: number; level: number; text: string }[] = []
+  let inFence = false
+  for (let i = 0; i < lines.length; i++) {
+    const l = lines[i]
+    if (/^\s{0,3}(```|~~~)/.test(l)) {
+      inFence = !inFence
+      continue
+    }
+    if (inFence) continue
+    const m = /^ {0,3}(#{1,6})\s+(.+?)\s*#*\s*$/.exec(l)
+    if (m) heads.push({ idx: i, level: m[1].length, text: normalizeHeadingText(m[2]) })
+  }
+  const k = heads.findIndex((h) => h.text === want)
+  if (k < 0) return null
+  let end = lines.length
+  for (let j = k + 1; j < heads.length; j++) {
+    if (heads[j].level <= heads[k].level) {
+      end = heads[j].idx
+      break
+    }
+  }
+  return lines.slice(heads[k].idx + 1, end).join('\n').trim()
+}
+
 export interface HeadingEntry {
   level: number
   text: string
   id: string
 }
 
-/** 标题文本清理：剥掉 wikilink / markdown 链接语法，只留可见文字（大纲展示与锚点共用） */
-function stripHeadingMarkup(input: string): string {
-  let s = input
-  // wikilink：[[目标|别名]] → 别名，[[目标]] → 目标
-  s = s.replace(/\[\[([^\]|]*)\|([^\]]*)\]\]/g, '$2')
-  s = s.replace(/\[\[([^\]]+)\]\]/g, '$1')
-  // markdown 链接 [文字](url)：支持一层嵌套方括号（如 [P3216 [HNOI2011]数学作业](url)），
-  // 多层嵌套时由内向外反复剥，结果与浏览器渲染出的可见文本一致（保证锚点 id 对得上）
-  let prev: string
-  do {
-    prev = s
-    s = s.replace(/\[([^\[\]]*(?:\[[^\[\]]*\][^\[\]]*)*)\]\([^()]*\)/g, '$1')
-  } while (s !== prev)
-  // 行尾悬挂的块引用 ID（^xxxxxx）也不进大纲
-  s = s.replace(/\s+\^[A-Za-z0-9-]{4,}\s*$/, '')
-  return s.trim()
+/** 提取正文标题（跳过代码块），供大纲侧边栏使用 */
+export function extractHeadings(content: string): HeadingEntry[] {
+  const out: HeadingEntry[] = []
+  const stripped = content.replace(/```[\s\S]*?```/g, ' ').replace(/~~~[\s\S]*?~~~/g, ' ')
+  // 重复标题必须去重：两处「## 总结」若共用 id，TOC 第二项、?h= 深链、
+  // scroll-spy 会全部指向第一个标题。规则与 GitHub/Obsidian 一致：-1、-2…
+  const seen = new Map<string, number>()
+  for (const m of stripped.matchAll(/^ {0,3}(#{1,6})\s+(.+?)\s*#*\s*$/gm)) {
+    const text = stripHeadingMarkup(m[2])
+    if (!text) continue
+    const base = headingIdOf(text)
+    const n = seen.get(base) ?? 0
+    seen.set(base, n + 1)
+    out.push({ level: m[1].length, text, id: n === 0 ? base : `${base}-${n}` })
+  }
+  return out
 }
 
 export interface HeadingSegment {
@@ -180,18 +397,6 @@ export function splitHeadingSegments(input: string): HeadingSegment[] {
     i = end + closer.length
   }
   flush()
-  return out
-}
-
-/** 提取正文标题（跳过代码块），供大纲侧边栏使用 */
-export function extractHeadings(content: string): HeadingEntry[] {
-  const out: HeadingEntry[] = []
-  const stripped = content.replace(/```[\s\S]*?```/g, ' ').replace(/~~~[\s\S]*?~~~/g, ' ')
-  for (const m of stripped.matchAll(/^ {0,3}(#{1,6})\s+(.+?)\s*#*\s*$/gm)) {
-    const text = stripHeadingMarkup(m[2])
-    if (!text) continue
-    out.push({ level: m[1].length, text, id: headingIdOf(text) })
-  }
   return out
 }
 
@@ -364,28 +569,44 @@ export function resolveEmbedPath(target: string, assetPaths: Set<string>): strin
   return null
 }
 
-/** 从正文里提取 ^blockid 所在的文本块（Obsidian 块引用，预览/链接标签共用） */
+/**
+ * 从正文里提取 ^blockid 所在的文本块（Obsidian 块引用，嵌入/预览共用）。
+ * 区间 = 该块自身，不向外扩散：向上遇到空行或标题就停，向下只到带 ^id 的那一行。
+ */
 export function extractBlockText(content: string, blockId: string): string | null {
   const esc = blockId.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
   const re = new RegExp('\\^' + esc + '\\s*$')
   const lines = content.split('\n')
   const idx = lines.findIndex((l) => re.test(l.trimEnd()))
   if (idx < 0) return null
+
+  const isHeading = (l: string) => /^ {0,3}#{1,6}\s/.test(l)
+  const stripId = (s: string) => s.replace(new RegExp('\\s*\\^' + esc + '\\s*$'), '').trim()
+
+  // 向上找块首：遇到空行或标题就停（原来的实现判断的是 lines[start] 而不是
+  // lines[start-1]，会把紧邻的标题行一起吞进引用区间）
   let start = idx
-  while (start > 0 && lines[start - 1].trim() !== '' && !/^ {0,3}#{1,6}\s/.test(lines[start])) start--
-  const block = lines
-    .slice(start, idx + 1)
-    .join('\n')
-    .replace(new RegExp('\\s*\\^' + esc + '\\s*$'), '')
-    .trim()
-  if (block) return block
+  while (start > 0 && lines[start - 1].trim() !== '' && !isHeading(lines[start - 1])) start--
+
+  const block = lines.slice(start, idx + 1).join('\n')
+  const cleaned = stripId(block)
+  if (cleaned) return cleaned
+
   // 孤立的 ^id 行（前后皆空行、无内容）：回退到上一个非空块
   let end = idx - 1
   while (end >= 0 && lines[end].trim() === '') end--
   if (end < 0) return null
   let s2 = end
-  while (s2 > 0 && lines[s2 - 1].trim() !== '' && !/^ {0,3}#{1,6}\s/.test(lines[s2])) s2--
+  while (s2 > 0 && lines[s2 - 1].trim() !== '' && !isHeading(lines[s2 - 1])) s2--
   return lines.slice(s2, end + 1).join('\n').trim() || null
+}
+
+/** 取嵌入/预览要显示的那一段正文：块引用 → 小节 → 整篇 */
+export function extractRegion(content: string, heading?: string): string {
+  if (!heading) return content
+  const h = heading.trim()
+  if (h.startsWith('^')) return extractBlockText(content, h.slice(1)) ?? content
+  return extractHeadingSection(content, h) ?? content
 }
 
 /** 链接目标标准化为 slug（用于引用索引；未创建目标也归一化存储） */

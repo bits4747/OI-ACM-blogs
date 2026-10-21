@@ -5,7 +5,7 @@ import { createPortal } from 'react-dom'
 import { useQuery } from '@tanstack/react-query'
 import { Lock } from 'lucide-react'
 import { fetchLinkIndex, fetchNoteDetail } from '@/lib/api'
-import { extractBlockText, headingIdOf } from '@/lib/obsidian'
+import { extractBlockText, extractHeadingSection, headingIdFromText } from '@/lib/obsidian'
 import { useBlog } from '@/lib/store'
 import { useT } from '@/lib/i18n'
 import { MarkdownRenderer } from '@/components/blog/markdown'
@@ -100,7 +100,7 @@ export function NotePreviewPopup({ slug, heading, anchor, onClose, onKeepOpen }:
     if (!data || data === 'private' || data === 'not_found' || isBlockRef || !heading) return
     const targetHeading = heading.split('#').pop()?.trim() || heading
     const timer = window.setTimeout(() => {
-      const el = cardRef.current?.querySelector('#' + CSS.escape(headingIdOf(targetHeading)))
+      const el = cardRef.current?.querySelector('#' + CSS.escape(headingIdFromText(targetHeading)))
       if (!el) return
       el.scrollIntoView({ block: 'start' })
       const node = el as HTMLElement
@@ -146,7 +146,19 @@ export function NotePreviewPopup({ slug, heading, anchor, onClose, onKeepOpen }:
         </div>
       )
     } else {
-      body = <MarkdownRenderer raw={note.raw} linkIndex={linkIndex ?? null} currentSlug={slug} />
+      // 引用的是某一小节时，只显示那一节的区间（到下一个同级/更高级标题为止），
+      // 而不是把整篇笔记都塞进浮窗 —— 与 Obsidian 的悬浮预览一致。
+      const section = heading ? extractHeadingSection(note.content, heading) : null
+      if (heading && section == null) {
+        body = (
+          <div>
+            <p className="mb-2 text-xs text-muted-foreground">{t.sectionMissing}</p>
+            <MarkdownRenderer raw={note.raw} linkIndex={linkIndex ?? null} currentSlug={slug} />
+          </div>
+        )
+      } else {
+        body = <MarkdownRenderer raw={section ?? note.raw} linkIndex={linkIndex ?? null} currentSlug={slug} />
+      }
     }
   }
 

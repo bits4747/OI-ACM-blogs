@@ -28,12 +28,13 @@ import {
 } from 'lucide-react'
 import { Dialog, DialogContent } from '@/components/ui/dialog'
 import { parseNote, resolveEmbedPath } from '@/lib/obsidian'
-import { headingId, remarkObsidian, type LinkIndex } from '@/lib/remark-obsidian'
+import { headingId, remarkMathMetaFix, remarkObsidian, type LinkIndex } from '@/lib/remark-obsidian'
 import { rehypeSafety } from '@/lib/rehype-safety'
 import { useBlog } from '@/lib/store'
 import { useT } from '@/lib/i18n'
 import { withBase } from '@/lib/site'
 import { NotePreviewPopup, useInsidePreview } from '@/components/blog/note-preview'
+import { Transclusion } from '@/components/blog/transclusion'
 
 /** vault 相对路径 → 静态附件地址（构建时附件已拷贝到 /assets/<原路径>） */
 function assetUrl(p: string): string {
@@ -81,6 +82,7 @@ function MdLink({
   const setTag = useBlog((s) => s.setTag)
   const setSearch = useBlog((s) => s.setSearch)
   const goHome = useBlog((s) => s.goHome)
+  const t = useT()
   const inPreview = useInsidePreview()
   // Obsidian 式悬停预览：延时弹出浮窗，移出链接/浮窗后关闭
   const [previewOpen, setPreviewOpen] = useState(false)
@@ -121,7 +123,7 @@ function MdLink({
       <a
         href={'?note=' + encodeURIComponent(slug)}
         className={cn}
-        title={cn.includes('private-link') ? '目标笔记未公开' : undefined}
+        title={cn.includes('private-link') ? t.notPublic : undefined}
         onMouseEnter={onEnter}
         onMouseLeave={onLeave}
         onClick={(e) => {
@@ -153,7 +155,7 @@ function MdLink({
       <a
         href={'?search=' + encodeURIComponent(q)}
         className={cn || 'internal-link unresolved-link'}
-        title="该笔记尚未上传，点击搜索相关笔记"
+        title={t.unresolvedTip}
         onClick={(e) => {
           e.preventDefault()
           setSearch(q)
@@ -282,6 +284,11 @@ function MdDiv({
     return <CalloutTitle type={type}>{children}</CalloutTitle>
   }
   if (cn.includes('note-embed')) {
+    const slug = rest['data-embed-slug']
+    if (typeof slug === 'string' && slug) {
+      const heading = rest['data-embed-heading']
+      return <Transclusion slug={slug} heading={typeof heading === 'string' && heading ? heading : undefined} />
+    }
     return <div className="note-embed">{children}</div>
   }
   return <div className={className}>{children}</div>
@@ -289,6 +296,7 @@ function MdDiv({
 
 /** 代码块：语言标签 + 复制按钮 + 语法高亮（rehype-highlight） */
 function CodeBlock({ children }: { children?: ReactNode }) {
+  const t = useT()
   const [copied, setCopied] = useState(false)
   let lang = 'text'
   let text = ''
@@ -313,9 +321,9 @@ function CodeBlock({ children }: { children?: ReactNode }) {
     <div className="code-block">
       <div className="code-block-head">
         <span>{lang}</span>
-        <button type="button" onClick={onCopy} className="code-copy" aria-label="复制代码">
+        <button type="button" onClick={onCopy} className="code-copy" aria-label={t.copyCode}>
           <Copy className="size-3.5" aria-hidden />
-          {copied ? '已复制' : '复制'}
+          {copied ? t.copied : t.copy}
         </button>
       </div>
       <pre className="code-block-body">{children}</pre>
@@ -397,6 +405,8 @@ export function MarkdownRenderer({ raw, linkIndex, currentSlug }: MarkdownRender
       [
         remarkGfm,
         remarkMath,
+        // 紧跟 remarkMath：把「`$$` 与公式同行」时被误当成 meta 的首行并回公式体
+        remarkMathMetaFix,
         [
           remarkObsidian,
           {
@@ -446,11 +456,14 @@ export function MarkdownRenderer({ raw, linkIndex, currentSlug }: MarkdownRender
         {content}
       </ReactMarkdown>
       <Dialog open={!!lightbox} onOpenChange={(o) => !o && setLightbox(null)}>
-        <DialogContent className="max-w-4xl border-0 bg-transparent p-2 [&>button]:bg-background/80 [&>button]:rounded-full">
+        <DialogContent
+          className="max-w-4xl border-0 bg-transparent p-2 [&>button]:bg-background/80 [&>button]:rounded-full"
+          closeLabel={t.close}
+        >
           {lightbox && (
             <img
               src={lightbox}
-              alt="附件预览"
+              alt={t.attachmentPreview}
               className="mx-auto max-h-[82vh] w-auto rounded-lg shadow-2xl"
             />
           )}

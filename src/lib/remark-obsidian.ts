@@ -4,10 +4,12 @@ import { DICT } from './i18n'
 import {
   basenameOf,
   extractBlockText,
+  headingIdFromText,
   headingIdOf,
   normalizePath,
   parseWikilink,
   resolveEmbedPath,
+  scanWikilinks,
   type LinkParts,
 } from './obsidian'
 
@@ -190,7 +192,7 @@ function wikilinkNode(isEmbed: boolean, raw: string, ctx: IndexCtx): PhrasingCon
       )
     }
     const label = headingLabel(heading)
-    return makeLink('#' + headingId(label), alias ?? label, 'internal-link anchor-link')
+    return makeLink('#' + headingIdFromText(label), alias ?? label, 'internal-link anchor-link')
   }
 
   if (isEmbed) {
@@ -207,22 +209,20 @@ function wikilinkNode(isEmbed: boolean, raw: string, ctx: IndexCtx): PhrasingCon
     }
     const note = findNote(target, ctx)
     if (note) {
+      // 真·嵌入：交给渲染层把目标笔记的对应区间（整篇 / 某小节 / 某个块）
+      // 直接展开在当前位置，而不是弹悬浮窗或只放一张摘要卡片。
+      // 这里只输出占位节点，区间截取和异步取数在 Transclusion 组件里做。
       return {
         type: 'paragraph',
         data: {
           hName: 'div',
-          hProperties: { className: ['note-embed'] },
+          hProperties: {
+            className: ['note-embed'],
+            'data-embed-slug': note.slug,
+            ...(heading ? { 'data-embed-heading': headingLabel(heading) } : {}),
+          },
         },
-        children: [
-          makeLink(
-            'obsidian-note:' +
-              note.slug +
-              (heading ? '?h=' + encodeURIComponent(headingLabel(heading)) : ''),
-            note.title,
-            'internal-link embed-title' + (note.isPublic ? '' : ' private-link')
-          ),
-          ...(note.excerpt ? [makeText('\n' + note.excerpt)] : []),
-        ],
+        children: [],
       } as Paragraph
     }
   }
@@ -296,15 +296,16 @@ function plainNodes(text: string): PhrasingContent[] {
   return nodes
 }
 
-/** 文本节点 → 行内节点数组（wikilink 优先拆分） */
+/** 文本节点 → 行内节点数组（wikilink 优先拆分；支持标题里带成对方括号） */
 function inlineNodes(text: string, ctx: IndexCtx): PhrasingContent[] {
   const nodes: PhrasingContent[] = []
-  const WIKI = /(!?)\[\[([^[\]\n]+?)\]\]/g
+  const tokens = scanWikilinks(text)
+  if (tokens.length === 0) return plainNodes(text)
   let last = 0
-  for (const m of text.matchAll(WIKI)) {
-    if (m.index > last) nodes.push(...plainNodes(text.slice(last, m.index)))
-    nodes.push(wikilinkNode(m[1] === '!', m[2], ctx) as PhrasingContent)
-    last = m.index + m[0].length
+  for (const tk of tokens) {
+    if (tk.start > last) nodes.push(...plainNodes(text.slice(last, tk.start)))
+    nodes.push(wikilinkNode(tk.isEmbed, tk.inner, ctx) as PhrasingContent)
+    last = tk.end
   }
   if (last < text.length) nodes.push(...plainNodes(text.slice(last)))
   return nodes
@@ -377,17 +378,9 @@ export function remarkObsidian(this: unknown, opts: RemarkObsidianOptions) {
     visit(tree, 'blockquote', (node) => {
       tryCallout(node as Blockquote, labels)
     })
-    // 第一轮 B：给标题打锚点 id。必须在 mdast（remark）阶段算：此时公式还是
-    // inlineMath 节点（值为 TeX 原文），而 rehype 之后 KaTeX 会把同一公式展开成
-    // mathml + annotation + html 三份，textOf 会把 "trans" 取三遍，导致正文 id
-    // 与大纲 id 对不上、点击大纲不跳转。
-    visit(tree, 'heading', (node) => {
-      const h = node as { children: PhrasingContent[]; data?: { hProperties?: Record<string, unknown> } }
-      const plain = plainTextOf(h.children)
-      if (!plain) return
-      h.data = h.data || {}
-      h.data.hProperties = { ...(h.data.hProperties || {}), id: headingIdOf(plain) }
-    })
+    // 第一轮 B（原位置）已移到最后一轮：标题锚点 id 必须在 wikilink / 行内语法
+    // 展开**之后**再算，否则 `## [[笔记|别名]]` 这类标题会得到 notealias（原文）
+    // 而大纲侧得到 alias（可见文字），正文 id 与 TOC id 对不上、点击大纲不跳转。
     // 第二轮：剥离悬挂的块引用 ID（段落/标题末尾的 ^xxxxxx），避免渲染成乱码
     visit(tree, ['paragraph', 'heading'], (node, index, parent) => {
       if (!parent || typeof index !== 'number') return
@@ -458,6 +451,69 @@ export function remarkObsidian(this: unknown, opts: RemarkObsidianOptions) {
         return
       }
       p.children.splice(index, 1, ...replacement)
+    })
+    // 最后一轮：给标题打锚点 id（见第一轮 B 的说明）。
+    // 仍然在 mdast 阶段算：此时公式还是 inlineMath（TeX 原文），而 rehype 之后
+    // KaTeX 会把同一公式展开成 mathml + annotation + html 三份，取文本会取三遍。
+    // 重复标题按出现顺序加 -1 / -2 后缀，与 extractHeadings（大纲侧）完全一致。
+    const seenIds = new Map<string, number>()
+    visit(tree, 'heading', (node) => {
+      const h = node as { children: PhrasingContent[]; data?: { hProperties?: Record<string, unknown> } }
+      const plain = plainTextOf(h.children)
+      if (!plain) return
+      const base = headingIdOf(plain)
+      const n = seenIds.get(base) ?? 0
+      seenIds.set(base, n + 1)
+      h.data = h.data || {}
+      h.data.hProperties = { ...(h.data.hProperties || {}), id: n === 0 ? base : `${base}-${n}` }
+    })
+  }
+}
+
+/** 把前缀文字插到 hast 子树最靠前的文本节点上（找不到就返回 false） */
+function prependToFirstText(nodes: unknown[], prefix: string): boolean {
+  for (const raw of nodes) {
+    const n = raw as { type?: string; value?: string; children?: unknown[] }
+    if (!n || typeof n !== 'object') continue
+    if (n.type === 'text' && typeof n.value === 'string') {
+      n.value = prefix + n.value
+      return true
+    }
+    if (Array.isArray(n.children) && prependToFirstText(n.children, prefix)) return true
+  }
+  return false
+}
+
+/**
+ * 修 remark-math 的 `$$` 同行写法。
+ *
+ * micromark 的数学块沿用代码围栏语义：`$$` 后面同一行的内容被当成 **meta**
+ * （类似 ```js 的 info string），真正的公式体从下一行开始。于是
+ *
+ *   $$\left(\begin{matrix}
+ *   a & b \\
+ *   \end{matrix}\right)$$
+ *
+ * 的首行被丢进 meta 里再没人读，公式体只剩 `a & b \\ \end{matrix}\right)`，
+ * `\left` 没有配对的 `\right`，KaTeX 直接报错。Obsidian 没有 math meta 概念，
+ * 那里 `$$` 后面的内容就是公式第一行，所以这里把 meta 并回公式体。
+ * 同时要改 data.hChildren —— rehype-katex 读的是那份预先烘好的文本。
+ */
+export function remarkMathMetaFix() {
+  return (tree: Root) => {
+    visit(tree, (node) => {
+      const n = node as unknown as {
+        type: string
+        meta?: string | null
+        value?: string
+        data?: { hChildren?: unknown[] }
+      }
+      if (n.type !== 'math' || !n.meta) return
+      const head = n.meta
+      n.meta = null
+      n.value = head + '\n' + (n.value ?? '')
+      const kids = n.data?.hChildren
+      if (Array.isArray(kids)) prependToFirstText(kids, head + '\n')
     })
   }
 }

@@ -491,6 +491,43 @@ html[data-lang='en'] .markdown-body .note-embed::before {
   font-family: 'Songti SC', 'Noto Serif SC', serif;
 }
 
+/* ---------- 双语并列渲染（避免语言闪烁） ----------
+   每个可见文案都同时输出中英两份，由 <html data-lang> 决定显示哪一份。
+   data-lang 由 layout 的预绘制脚本在首帧前设好，所以不会出现"闪一下换语言"。 */
+.i18n-en { display: none; }
+html[data-lang='en'] .i18n-zh { display: none; }
+html[data-lang='en'] .i18n-en { display: inline; }
+
+/* ---------- 笔记嵌入（transclusion） ---------- */
+.markdown-body .note-embed.note-embed-note {
+  margin: 1em 0;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-left: 3px solid color-mix(in srgb, var(--primary) 55%, transparent);
+  border-radius: 0.5rem;
+  background: color-mix(in srgb, var(--muted) 22%, transparent);
+  overflow: hidden;
+}
+/* 嵌入卡片不再用 ::before 角标（那是给旧摘要卡片用的），改成真实标题栏 */
+.markdown-body .note-embed.note-embed-note::before { content: none; }
+.markdown-body .note-embed-head {
+  padding: 0.4rem 0.85rem;
+  border-bottom: 1px solid color-mix(in srgb, var(--border) 70%, transparent);
+  background: color-mix(in srgb, var(--muted) 35%, transparent);
+  font-size: 0.8em;
+}
+.markdown-body .note-embed-body { padding: 0.2rem 0.9rem 0.6rem; }
+.markdown-body .note-embed-body .markdown-body { font-size: 1em; }
+.markdown-body .note-embed .embed-title {
+  font-weight: 600;
+  font-family: 'Songti SC', 'Noto Serif SC', serif;
+  color: var(--primary);
+  text-align: left;
+}
+.markdown-body .note-embed .embed-title:hover { text-decoration: underline; }
+.markdown-body .note-embed-hint { color: var(--muted-foreground); font-size: 0.8em; }
+.markdown-body .note-embed-loading { color: var(--muted-foreground); font-size: 0.85em; padding: 0.6rem 0.9rem; }
+
 /* ---------- KaTeX ---------- */
 .markdown-body .katex-display { overflow-x: auto; overflow-y: hidden; padding: 0.3em 0; }
 

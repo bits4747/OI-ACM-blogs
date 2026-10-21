@@ -11,6 +11,7 @@ import { useBlog } from '@/lib/store'
 import { HomeView } from '@/components/blog/home-view'
 import { NoteView } from '@/components/blog/note-view'
 import { useLang, useT } from '@/lib/i18n'
+import { T } from '@/components/blog/t-text'
 
 const emptySubscribe = () => () => {}
 
@@ -188,7 +189,6 @@ function Views() {
 }
 
 function FooterLine() {
-  const t = useT()
   const { data: site } = useQuery({
     queryKey: ['site'],
     queryFn: fetchSiteInfo,
@@ -196,7 +196,7 @@ function FooterLine() {
   })
   return (
     <span>
-      {(site?.name ?? t.siteFallback)} · {t.vaultDriven}
+      {site?.name ?? <T k="siteFallback" />} · <T k="vaultDriven" />
     </span>
   )
 }
@@ -205,7 +205,6 @@ function FooterLine() {
 function queryOf(view: string, slug: string | null, activeTag: string | null): string {
   const params = new URLSearchParams()
   if (view === 'note' && slug) params.set('note', slug)
-  else if (view === 'admin') params.set('admin', '1')
   else if (activeTag) params.set('tag', activeTag)
   return params.toString()
 }
@@ -214,7 +213,17 @@ export function BlogApp() {
   const [client] = useState(
     () =>
       new QueryClient({
-        defaultOptions: { queries: { retry: 1, staleTime: 30_000 } },
+        defaultOptions: {
+          queries: {
+            retry: 1,
+            staleTime: 30_000,
+            // 默认的 networkMode: 'online' 会在浏览器判定离线时把查询**挂起**：
+            // 请求不发、也不报错，isError 永远是 false、data 永远空，界面就卡在
+            // 「加载中」或（改版前）误报「笔记不存在」。改成 always：照常发请求，
+            // 失败了就是 error，组件能给出「加载失败 + 重试」。
+            networkMode: 'always',
+          },
+        },
       })
   )
   const view = useBlog((s) => s.view)

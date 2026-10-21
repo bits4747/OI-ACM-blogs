@@ -5,22 +5,19 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   ArrowLeft,
   Calendar,
-  Eye,
-  EyeOff,
   FileText,
+  GripVertical,
   Hash,
   Link2,
   ListTree,
   Lock,
   Minus,
   Pencil,
-  Trash2,
+  RotateCw,
 } from 'lucide-react'
-import { toast } from 'sonner'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
-import { Switch } from '@/components/ui/switch'
 import {
   fetchLinkIndex,
   fetchNoteDetail,
@@ -30,6 +27,7 @@ import katex from 'katex'
 import { extractHeadings, splitHeadingSegments, type HeadingEntry } from '@/lib/obsidian'
 import { useBlog } from '@/lib/store'
 import { useT } from '@/lib/i18n'
+import { T } from '@/components/blog/t-text'
 import { MarkdownRenderer } from '@/components/blog/markdown'
 
 /** 大纲条目文字：公式用 KaTeX 渲染，不再输出 $..$ 原符号 */
@@ -104,17 +102,20 @@ function RefList({
 
 function PrivateLock({ slug }: { slug: string }) {
   const goHome = useBlog((s) => s.goHome)
-  const t = useT()
   return (
     <div className="mx-auto max-w-md rounded-2xl border border-dashed p-10 text-center">
       <div className="mx-auto flex size-14 items-center justify-center rounded-full bg-muted">
         <Lock className="size-7 text-muted-foreground" aria-hidden />
       </div>
-      <h2 className="mt-4 font-serif text-xl font-semibold">{t.notPublic}</h2>
-      <p className="mt-2 text-sm text-muted-foreground">{t.notPublicBody}</p>
+      <h2 className="mt-4 font-serif text-xl font-semibold">
+        <T k="notPublic" />
+      </h2>
+      <p className="mt-2 text-sm text-muted-foreground">
+        <T k="notPublicBody" />
+      </p>
       <p className="mt-1 break-all text-xs text-muted-foreground/60">{slug}</p>
       <Button variant="outline" className="mt-4" onClick={() => goHome()}>
-        {t.goHome}
+        <T k="goHome" />
       </Button>
     </div>
   )
@@ -149,7 +150,7 @@ export function NoteView({ slug }: { slug: string }) {
     }
   }, [fontScale])
 
-  const { data, isLoading, isError } = useQuery({
+  const { data, isLoading, isError, isFetching } = useQuery({
     queryKey: ['note', slug, isAdmin],
     queryFn: () => fetchNoteDetail(slug),
   })
@@ -160,6 +161,13 @@ export function NoteView({ slug }: { slug: string }) {
   })
 
   const queryClient = useQueryClient()
+
+  // 重试：resetQueries 重置查询状态并重新拉取。只调 refetch() 不够 ——
+  // 查询若被 React Query 挂起（fetchStatus 为 'paused'），refetch 不会真的发请求，
+  // 表现成「按钮点了没反应」；重置状态能保证重新走一次请求。
+  const retryLoad = () => {
+    void queryClient.resetQueries({ queryKey: ['note', slug, isAdmin] })
+  }
 
   // 大纲数据必须在所有提前 return 之前计算（Rules of Hooks：每次渲染 hook 数量要一致）
   const headings = useMemo(
@@ -204,10 +212,6 @@ export function NoteView({ slug }: { slug: string }) {
     }
   }, [data, pendingHeading, clearPendingHeading])
 
-  // 静态站纯只读：没有"改公开 / 删除"这类写操作（那是全栈版的职责），
-  // 因此不定义 onTogglePublic / onDelete —— 下面的 isAdmin 恒为 false，
-  // 管理按钮与私密/原文 Tab 都不会渲染。
-
   if (isLoading) {
     return (
       <div className="space-y-4">
@@ -220,17 +224,42 @@ export function NoteView({ slug }: { slug: string }) {
 
   if (data === 'private') return <PrivateLock slug={slug} />
 
-  if (isError || data === 'not_found' || !data) {
+  // 「加载失败」与「笔记不存在」是两回事：网络断了 / 服务器 5xx 时不该说
+  // 「笔记不存在或已被删除」，那会让人以为内容被删了。这里分开并给重试按钮。
+  // 注意「没有数据」不等于「笔记不存在」：请求还没落地（或 React Query 因网络
+  // 状态把查询挂起 paused）时 data 同样是 undefined，那种情况要给重试而不是
+  // 报「已被删除」。只有明确拿到 'not_found' 才说笔记不存在。
+  if (isError || (!data && !isLoading)) {
     return (
       <div className="rounded-xl border border-dashed p-10 text-center">
-        <FileText className="mx-auto size-10 text-muted-foreground/50" aria-hidden />
-        <p className="mt-3 font-medium">{t.notFound}</p>
-        <Button variant="outline" className="mt-4" onClick={() => goHome()}>
-          {t.goHome}
+        <RotateCw className="mx-auto size-10 text-muted-foreground/50" aria-hidden />
+        <p className="mt-3 font-medium">
+          <T k="noteLoadFailed" />
+        </p>
+        <Button variant="outline" className="mt-4" disabled={isFetching} onClick={retryLoad}>
+          {isFetching ? t.loading : <T k="retry" />}
         </Button>
       </div>
     )
   }
+
+  if (data === 'not_found') {
+    return (
+      <div className="rounded-xl border border-dashed p-10 text-center">
+        <FileText className="mx-auto size-10 text-muted-foreground/50" aria-hidden />
+        <p className="mt-3 font-medium">
+          <T k="notFound" />
+        </p>
+        <Button variant="outline" className="mt-4" onClick={() => goHome()}>
+          <T k="goHome" />
+        </Button>
+      </div>
+    )
+  }
+
+  // 纯类型收窄：上面的分支已经把「加载中 / 私密 / 失败 / 不存在」都返回掉了，
+  // 这里 data 必然是笔记对象。保留这个 return 是为了让 TS 能推断出来。
+  if (!data) return null
 
   const { note, backlinks, outlinks } = data
   const fm = note.frontmatter
@@ -245,7 +274,7 @@ export function NoteView({ slug }: { slug: string }) {
           className="inline-flex items-center gap-1 rounded px-1 py-0.5 transition-colors hover:text-foreground"
         >
           <ArrowLeft className="size-4" aria-hidden />
-          {t.back}
+          <T k="back" />
         </button>
         {note.folder && <span className="opacity-60">/ {note.folder} /</span>}
         <span className="truncate font-medium text-foreground/80">{note.title}</span>
@@ -262,7 +291,7 @@ export function NoteView({ slug }: { slug: string }) {
           </span>
           <span className="inline-flex items-center gap-1">
             <Pencil className="size-3.5" aria-hidden />
-            {t.words(note.wordCount)}
+            <T k="words" args={[note.wordCount]} />
           </span>
           {note.tags.length > 0 && (
             <span className="inline-flex flex-wrap items-center gap-1.5">
@@ -354,6 +383,12 @@ const TOC_H_MIN = 140
  * 大纲浮层：固定悬浮于页面上（不参与文章排版，不挤压正文宽度），
  * 可拖动到任意位置、可折叠成小圆钮、右下角可拖拽调整宽高；
  * 位置/尺寸/折叠状态记忆在 localStorage。
+ *
+ * 拖动入口有两个：
+ *   1. 标题栏整条（鼠标/触摸都行）
+ *   2. 左侧专门的拖动按键（手柄图标）—— 手机上标题栏容易被误触成滚动，
+ *      给一个明确的抓手更可靠；两者都设 touch-action:none，保证触摸拖动不被
+ *      浏览器的页面滚动抢走。
  */
 function NoteToc({ headings }: { headings: HeadingEntry[] }) {
   const t = useT()
@@ -361,10 +396,16 @@ function NoteToc({ headings }: { headings: HeadingEntry[] }) {
   const [pos, setPos] = useState<{ x: number; y: number } | null>(null)
   const [size, setSize] = useState<{ w: number; h: number } | null>(null)
   const [collapsed, setCollapsed] = useState(false)
+  const [dragging, setDragging] = useState(false)
   const panelRef = useRef<HTMLDivElement | null>(null)
 
   useEffect(() => {
-    const onScroll = () => {
+    // scroll-spy：只读一次布局，用 rAF 合并连续滚动事件。
+    // 原先每个 scroll 事件都对每个标题调 getBoundingClientRect()，长笔记 + 高频滚动
+    // 会造成明显的强制重排开销。
+    let raf = 0
+    const measure = () => {
+      raf = 0
       let current: string | null = null
       for (const h of headings) {
         const el = document.getElementById(h.id)
@@ -372,9 +413,16 @@ function NoteToc({ headings }: { headings: HeadingEntry[] }) {
       }
       setActiveId(current)
     }
-    onScroll()
+    const onScroll = () => {
+      if (raf) return
+      raf = window.requestAnimationFrame(measure)
+    }
+    measure()
     window.addEventListener('scroll', onScroll, { passive: true })
-    return () => window.removeEventListener('scroll', onScroll)
+    return () => {
+      window.removeEventListener('scroll', onScroll)
+      if (raf) window.cancelAnimationFrame(raf)
+    }
   }, [headings])
 
   // 恢复上次的浮动位置、尺寸与折叠状态
@@ -430,10 +478,13 @@ function NoteToc({ headings }: { headings: HeadingEntry[] }) {
   }, [])
 
   const startDrag = (e: ReactPointerEvent) => {
-    if (e.button !== 0) return
+    // 触摸事件没有 button（恒为 0/-1），只对鼠标左键设限
+    if (e.pointerType === 'mouse' && e.button !== 0) return
     const el = panelRef.current
-    if (!el || (e.target as HTMLElement).closest('button')) return
+    if (!el || (e.target as HTMLElement).closest('[data-no-drag]')) return
     e.preventDefault()
+    e.stopPropagation()
+    setDragging(true)
     const rect = el.getBoundingClientRect()
     const dx = e.clientX - rect.left
     const dy = e.clientY - rect.top
@@ -444,15 +495,18 @@ function NoteToc({ headings }: { headings: HeadingEntry[] }) {
       })
     }
     const up = () => {
+      setDragging(false)
       window.removeEventListener('pointermove', move)
       window.removeEventListener('pointerup', up)
+      window.removeEventListener('pointercancel', up)
     }
     window.addEventListener('pointermove', move)
     window.addEventListener('pointerup', up)
+    window.addEventListener('pointercancel', up)
   }
 
   const startResize = (e: ReactPointerEvent) => {
-    if (e.button !== 0) return
+    if (e.pointerType === 'mouse' && e.button !== 0) return
     e.preventDefault()
     e.stopPropagation()
     const startX = e.clientX
@@ -470,9 +524,11 @@ function NoteToc({ headings }: { headings: HeadingEntry[] }) {
     const up = () => {
       window.removeEventListener('pointermove', move)
       window.removeEventListener('pointerup', up)
+      window.removeEventListener('pointercancel', up)
     }
     window.addEventListener('pointermove', move)
     window.addEventListener('pointerup', up)
+    window.addEventListener('pointercancel', up)
   }
 
   const setCollapsedPersisted = (v: boolean) => {
@@ -505,7 +561,7 @@ function NoteToc({ headings }: { headings: HeadingEntry[] }) {
         aria-label={t.tocExpand}
       >
         <ListTree className="size-3.5" aria-hidden />
-        {t.toc}
+        <T k="toc" />
       </button>
     )
   }
@@ -513,20 +569,32 @@ function NoteToc({ headings }: { headings: HeadingEntry[] }) {
   return (
     <div
       ref={panelRef}
-      className="fixed z-40 w-60 rounded-xl border border-border bg-background/95 shadow-xl backdrop-blur"
-      style={{ ...(size ? { width: size.w } : {}), ...floatStyle }}
+      className={
+        'fixed z-40 max-w-[calc(100vw-16px)] rounded-xl border border-border bg-background/95 shadow-xl backdrop-blur' +
+        (dragging ? ' shadow-2xl ring-1 ring-primary/30' : '')
+      }
+      style={{ width: size?.w ?? 240, ...floatStyle }}
     >
       <div
-        className="flex cursor-grab select-none items-center gap-1.5 border-b px-3 py-2 active:cursor-grabbing"
+        className="flex touch-none cursor-grab select-none items-center gap-1.5 border-b px-3 py-2 active:cursor-grabbing"
         onPointerDown={startDrag}
       >
+        {/* 明确的拖动按键：手机上按住这里就能拖，不用去猜标题栏 */}
+        <span
+          className="-ml-1 flex shrink-0 items-center rounded p-0.5 text-muted-foreground/70 hover:text-foreground"
+          aria-hidden
+          title={t.tocDrag}
+        >
+          <GripVertical className="size-3.5" />
+        </span>
         <ListTree className="size-3.5 shrink-0 text-muted-foreground" aria-hidden />
         <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-          {t.toc}
+          <T k="toc" />
         </span>
         <span className="text-[10px] text-muted-foreground/60">{headings.length}</span>
         <button
           type="button"
+          data-no-drag
           className="ml-auto rounded p-0.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
           onClick={() => setCollapsedPersisted(true)}
           aria-label={t.tocCollapse}
@@ -558,7 +626,7 @@ function NoteToc({ headings }: { headings: HeadingEntry[] }) {
         </ul>
       </nav>
       <div
-        className="absolute bottom-0 right-0 z-10 size-4 cursor-nwse-resize touch-none"
+        className="absolute bottom-0 right-0 z-10 size-5 cursor-nwse-resize touch-none"
         onPointerDown={startResize}
         role="presentation"
       >

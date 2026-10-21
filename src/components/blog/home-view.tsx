@@ -1,9 +1,8 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { memo, useMemo, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import {
-  Calendar,
   ChevronRight,
   ChevronsDownUp,
   ChevronsUpDown,
@@ -13,14 +12,15 @@ import {
   Lock,
 } from 'lucide-react'
 import { Skeleton } from '@/components/ui/skeleton'
-import { fetchNotes, type NoteListItem } from '@/lib/api'
+import { fetchNotes, fetchSearchIndex, type NoteListItem } from '@/lib/api'
 import { useBlog } from '@/lib/store'
 import { useT } from '@/lib/i18n'
+import { T } from '@/components/blog/t-text'
 
 const FOLDERS_COLLAPSED_KEY = 'collapsed-folders'
 
 /** 紧凑列表行：标题 + 日期/状态，一行搞定 */
-function NoteRow({ note }: { note: NoteListItem }) {
+const NoteRow = memo(function NoteRow({ note, snippet }: { note: NoteListItem; snippet?: string }) {
   const navigateToNote = useBlog((s) => s.navigateToNote)
   const t = useT()
   return (
@@ -28,47 +28,75 @@ function NoteRow({ note }: { note: NoteListItem }) {
       <button
         type="button"
         onClick={() => navigateToNote(note.slug)}
-        className="group flex w-full items-center gap-2 rounded-md px-2.5 py-1.5 text-left transition-colors hover:bg-muted/70"
+        className="group flex w-full items-start gap-2 rounded-md px-2.5 py-1.5 text-left transition-colors hover:bg-muted/70"
         aria-label={t.openNote(note.title)}
       >
-        <span className="min-w-0 flex-1 truncate text-sm text-foreground group-hover:text-primary transition-colors">
-          {note.title}
+        <span className="min-w-0 flex-1">
+          <span className="block truncate text-sm text-foreground transition-colors group-hover:text-primary">
+            {note.title}
+          </span>
+          {snippet && (
+            <span className="mt-0.5 block truncate text-[11px] leading-4 text-muted-foreground/80">
+              {snippet}
+            </span>
+          )}
         </span>
-        {!note.isPublic && <Lock className="size-3 shrink-0 text-muted-foreground/70" aria-hidden />}
-        <span className="shrink-0 text-[11px] tabular-nums text-muted-foreground/80">
+        {!note.isPublic && <Lock className="mt-0.5 size-3 shrink-0 text-muted-foreground/70" aria-hidden />}
+        <span className="mt-0.5 shrink-0 text-[11px] tabular-nums text-muted-foreground/80">
           {(note.noteDate ?? note.updatedAt).slice(0, 10)}
         </span>
       </button>
     </li>
   )
-}
+})
 
 export function HomeView() {
   const search = useBlog((s) => s.search)
   const activeTag = useBlog((s) => s.activeTag)
   const setTag = useBlog((s) => s.setTag)
   const t = useT()
+  const q = search.trim().toLowerCase()
 
   const { data: notes, isLoading, isError } = useQuery({
     queryKey: ['notes'],
     queryFn: () => fetchNotes(false),
   })
 
-  const visible = useMemo(() => {
+  // 全文索引：只在真的输入了搜索词时才拉（几十 KB，别拖慢首屏）。
+  // 原先搜索只匹配「标题 + 120 字摘要」，正文中部的词根本搜不到，
+  // 与界面上「搜索标题、正文、路径、标签」的承诺不符。
+  const { data: bodyIndex } = useQuery({
+    queryKey: ['search-index'],
+    queryFn: fetchSearchIndex,
+    enabled: q.length > 0,
+    staleTime: 5 * 60_000,
+  })
+
+  const { visible, snippets } = useMemo(() => {
     let list = notes ?? []
-    const q = search.trim().toLowerCase()
+    const snips = new Map<string, string>()
     if (q) {
-      list = list.filter(
-        (n) =>
-          n.title.toLowerCase().includes(q) ||
-          n.excerpt.toLowerCase().includes(q) ||
-          n.path.toLowerCase().includes(q) ||
-          n.tags.some((t) => t.toLowerCase().includes(q))
-      )
+      list = list.filter((n) => {
+        const meta = [n.title, n.path, n.tags.join(' '), n.excerpt].join('\n').toLowerCase()
+        if (meta.includes(q)) return true
+        const body = bodyIndex?.[n.slug]
+        if (!body) return false
+        const i = body.toLowerCase().indexOf(q)
+        if (i < 0) return false
+        const start = Math.max(0, i - 24)
+        const end = Math.min(body.length, i + q.length + 70)
+        snips.set(
+          n.slug,
+          (start > 0 ? '…' : '') +
+            body.slice(start, end).replace(/\s+/g, ' ').trim() +
+            (end < body.length ? '…' : '')
+        )
+        return true
+      })
     }
     if (activeTag) list = list.filter((n) => n.tags.includes(activeTag))
-    return list
-  }, [notes, search, activeTag])
+    return { visible: list, snippets: snips }
+  }, [notes, q, activeTag, bodyIndex])
 
   const tagCounts = useMemo(() => {
     const m = new Map<string, number>()
@@ -120,11 +148,13 @@ export function HomeView() {
     <div>
       {/* 紧凑标题行：站名 + 数量统计 + 一键折叠 */}
       <div className="mb-5 flex flex-wrap items-center gap-x-3 gap-y-2">
-        <h1 className="font-serif text-xl font-bold tracking-tight">{t.allNotes}</h1>
+        <h1 className="font-serif text-xl font-bold tracking-tight">
+          <T k="allNotes" />
+        </h1>
         {notes && (
           <span className="text-xs text-muted-foreground">
-            {t.publicCount(notes.filter((n) => n.isPublic).length)}
-            {search.trim() && t.filteredCount(visible.length)}
+            <T k="publicCount" args={[notes.filter((n) => n.isPublic).length]} />
+            {search.trim() && <T k="filteredCount" args={[visible.length]} />}
           </span>
         )}
         {folders.length > 0 && (
@@ -136,12 +166,12 @@ export function HomeView() {
             {allCollapsed ? (
               <>
                 <ChevronsUpDown className="size-3.5" aria-hidden />
-                {t.expandAll}
+                <T k="expandAll" />
               </>
             ) : (
               <>
                 <ChevronsDownUp className="size-3.5" aria-hidden />
-                {t.collapseAll}
+                <T k="collapseAll" />
               </>
             )}
           </button>
@@ -152,15 +182,17 @@ export function HomeView() {
         <div className="mb-4 flex items-center gap-2">
           <span className="inline-flex items-center gap-1 rounded-full border border-primary/60 bg-primary/10 px-3 py-1 text-xs text-primary">
             <Hash className="size-2.5" aria-hidden />
-            {t.tagFilter} {activeTag}
-            <span className="text-muted-foreground">{t.noteCountSuffix(visible.length)}</span>
+            <T k="tagFilter" /> {activeTag}
+            <span className="text-muted-foreground">
+              <T k="noteCountSuffix" args={[visible.length]} />
+            </span>
           </span>
           <button
             type="button"
             onClick={() => setTag(null)}
             className="rounded-full border border-border px-2 py-1 text-xs text-muted-foreground transition-colors hover:border-primary/50 hover:text-foreground"
           >
-            {t.clearFilter}
+            <T k="clearFilter" />
           </button>
         </div>
       )}
@@ -172,7 +204,7 @@ export function HomeView() {
             onClick={() => setTag(null)}
             className={'rounded-full border px-3 py-1 text-xs transition-colors ' + (activeTag === null ? 'border-primary bg-primary text-primary-foreground' : 'border-border text-muted-foreground hover:border-primary/50 hover:text-foreground')}
           >
-            {t.all}
+            <T k="all" />
           </button>
           {tagCounts.map(([tag, count]) => (
             <button
@@ -203,17 +235,19 @@ export function HomeView() {
       )}
 
       {isError && (
-        <p className="text-center text-sm text-destructive">{t.loadFailed}</p>
+        <p className="text-center text-sm text-destructive">
+          <T k="loadFailed" />
+        </p>
       )}
 
       {!isLoading && notes && visible.length === 0 && (
         <div className="rounded-xl border border-dashed p-12 text-center">
           <FileText className="mx-auto size-10 text-muted-foreground/50" aria-hidden />
           <p className="mt-3 font-medium">
-            {notes.length === 0 ? t.emptyVault : t.noMatch}
+            <T k={notes.length === 0 ? 'emptyVault' : 'noMatch'} />
           </p>
           <p className="mt-1 text-sm text-muted-foreground">
-            {notes.length === 0 ? t.emptyVaultHint : t.emptyHint}
+            <T k={notes.length === 0 ? 'emptyVaultHint' : 'emptyHint'} />
           </p>
         </div>
       )}
@@ -233,6 +267,7 @@ export function HomeView() {
                   onClick={() => toggleFolder(folder)}
                   className="flex w-full items-center gap-2 px-4 py-3 text-left transition-colors hover:bg-muted/60"
                   aria-expanded={!isCollapsed}
+                  aria-label={(folder || t.uncategorized) + (isCollapsed ? ' — ' + t.expandAll : ' — ' + t.collapseAll)}
                 >
                   <ChevronRight
                     className={'size-4 shrink-0 text-muted-foreground transition-transform ' + (isCollapsed ? '' : 'rotate-90')}
@@ -240,14 +275,16 @@ export function HomeView() {
                   />
                   <Folder className="size-4 shrink-0 text-primary/80" aria-hidden />
                   <span className="min-w-0 flex-1 truncate font-serif text-base font-semibold text-foreground">
-                    {folder || t.uncategorized}
+                    {folder || <T k="uncategorized" />}
                   </span>
-                  <span className="shrink-0 text-xs tabular-nums text-muted-foreground">{t.folderCount(items.length)}</span>
+                  <span className="shrink-0 text-xs tabular-nums text-muted-foreground">
+                    <T k="folderCount" args={[items.length]} />
+                  </span>
                 </button>
                 {!isCollapsed && (
                   <ul className="border-t border-border/60 px-1.5 py-1.5">
                     {items.map((n) => (
-                      <NoteRow key={n.slug} note={n} />
+                      <NoteRow key={n.slug} note={n} snippet={snippets.get(n.slug)} />
                     ))}
                   </ul>
                 )}

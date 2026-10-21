@@ -158,6 +158,27 @@ const excerptOf = (content, len = 120) => {
     .trim()
   return text.length > len ? text.slice(0, len) + '…' : text
 }
+/**
+ * 全文搜索用的纯文本（不截断）：剥掉 frontmatter、图片/链接语法、标题井号、
+ * 引用符号与强调标记，保留正文（含公式与代码，方便搜函数名/符号）。
+ * 上限 20000 字防止个别超长笔记把索引撑爆。
+ */
+const searchTextOf = (content) => {
+  const text = content
+    .replace(/^---[\s\S]*?---\n?/, '')
+    .replace(/!\[\[[^\]]*\]\]/g, ' ')
+    .replace(/\[\[([^\]|]+)\|([^\]]+)\]\]/g, '$2')
+    .replace(/\[\[([^\]]+)\]\]/g, '$1')
+    .replace(/!\[[^\]]*\]\([^)]*\)/g, ' ')
+    .replace(/\[([^\]]*)\]\([^)]*\)/g, '$1')
+    .replace(/^ {0,3}#{1,6}\s+/gm, '')
+    .replace(/^>\s?\[![^\]]*\]\s?/gm, '')
+    .replace(/^>\s?/gm, '')
+    .replace(/[*_~`#>|]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+  return text.slice(0, 20000)
+}
 function extractTags(data, content) {
   const out = new Set()
   const add = (v) => {
@@ -178,13 +199,106 @@ function extractTags(data, content) {
   }
   return [...out].slice(0, 30)
 }
+/**
+ * 修「markdown 链接被塞进 wikilink」的坏行（与 src/lib/obsidian.ts 的
+ * repairObsidianArtifacts 同一实现）。
+ *
+ * Obsidian 允许 wikilink 目标里带成对方括号，但早期导出/手滑会写出
+ *   ![[P8820 [CSP-S 2022] 数据传输](https //x)](CSP-S.md#[P8820%20...](https%20//x))
+ * 这种「两层 markdown 链接套在 [[ ]] 里、且没有闭合 ]]」的行。按方括号配平
+ * 扫描时它没有结束符，整段引用直接失效。这里只处理「整行、含 [[、不含 ]]」
+ * 的行，把它重写成 [[外层链接目标|显示文字]]。
+ */
+const ARTIFACT_LINE = /^(\s*)(!?)\[\[(.+?)\]\(([^)]*)\)\]\((.+)\)\s*$/
+const MD_LINK_RE = /\[([^\[\]]*(?:\[[^\[\]]*\][^\[\]]*)*)\]\([^()]*\)/g
+function stripMdLinks(input) {
+  let cur = input
+  let prev
+  let guard = 0
+  do {
+    prev = cur
+    cur = cur.replace(MD_LINK_RE, '$1')
+  } while (cur !== prev && ++guard < 8)
+  return cur
+}
+function repairObsidianArtifacts(content) {
+  if (!content.includes('[[')) return content
+  let inFence = false
+  const lines = content.split('\n').map((line) => {
+    if (/^\s*(```|~~~)/.test(line)) {
+      inFence = !inFence
+      return line
+    }
+    if (inFence || !line.includes('[[')) return line
+    let l = line
+    if (!l.includes(']]')) {
+      const m = ARTIFACT_LINE.exec(l)
+      if (m) {
+        const [, indent, bang, label, , target] = m
+        l = `${indent}${bang}[[${target.trim()}|${label.trim()}]]`
+      }
+    }
+    // wikilink 内部含 markdown 链接语法时，mdast 解析会把 [[ 与 ]] 拆散，
+    // 这里先剥成纯文字（与 src/lib/obsidian.ts 同一实现）
+    const toks = scanWikilinks(l)
+    if (toks.length === 0) return l
+    let res = ''
+    let last = 0
+    for (const tk of toks) {
+      res += l.slice(last, tk.start)
+      res += (tk.isEmbed ? '!' : '') + '[[' + stripMdLinks(tk.inner) + ']]'
+      last = tk.end
+    }
+    return res + l.slice(last)
+  })
+  return lines.join('\n')
+}
+
+/**
+ * 按方括号配平扫描 wikilink（与 src/lib/obsidian.ts 的 scanWikilinks 同一规则）。
+ * 不能用 /\[\[([^\][\n]+?)\]\]/ 这种朴素正则：本库存在目标里带成对方括号的
+ * wikilink（标题本身就是 markdown 链接），朴素正则会漏掉或截断它们。
+ */
+function scanWikilinks(text) {
+  const out = []
+  for (let i = 0; i < text.length; i++) {
+    const isEmbed = text[i] === '!' && text[i + 1] === '[' && text[i + 2] === '['
+    const start = isEmbed ? i + 1 : i
+    if (text[start] !== '[' || text[start + 1] !== '[') continue
+    let j = start + 2
+    let depth = 0
+    let inner = ''
+    while (j < text.length) {
+      const ch = text[j]
+      if (ch === '\\') {
+        inner += text[j + 1] ?? ''
+        j += 2
+        continue
+      }
+      if (ch === '\n') break
+      if (ch === '[') depth++
+      else if (ch === ']') {
+        if (depth === 0 && text[j + 1] === ']') {
+          out.push({ start: i, end: j + 2, isEmbed, inner })
+          i = j + 1
+          break
+        }
+        if (depth > 0) depth--
+      }
+      inner += ch
+      j++
+    }
+  }
+  return out
+}
+
 function extractWikiRefs(raw) {
   const all = []
   const embeds = []
   const links = []
-  for (const m of raw.matchAll(/(!?)\[\[([^\][\n]+?)\]\]/g)) {
-    all.push(m[2])
-    ;(m[1] === '!' ? embeds : links).push(m[2])
+  for (const tk of scanWikilinks(repairObsidianArtifacts(raw))) {
+    all.push(tk.inner)
+    ;(tk.isEmbed ? embeds : links).push(tk.inner)
   }
   return { all, embeds, links }
 }
@@ -226,7 +340,7 @@ function walk(dir, out = []) {
   for (const e of entries) {
     const abs = path.join(dir, e.name)
     if (e.isDirectory()) {
-      if (SKIP.some((d) => e.name === d || e.name.startsWith(d + '/'))) continue
+      if (SKIP.includes(e.name)) continue
       walk(abs, out)
     } else if (e.isFile()) {
       out.push(path.relative(CONTENT, abs).replace(/\\/g, '/'))
@@ -241,7 +355,30 @@ const slugFile = (slug) => Buffer.from(slug, 'utf8').toString('base64url')
 // --finalize 只做「把产物搬出源码目录」，不需要重新生成一遍内容：
 // 主流程在此直接跳过，末尾再执行 finalize()。
 const FINALIZE_ONLY = process.argv.includes('--finalize')
-const isPublicMd = (p) => /\.md$/i.test(p)
+// .markdown 与 .md 是同一类笔记（Obsidian 两种扩展名都认），这里必须一致，
+// 否则 toSlug() 接受的 .markdown 会在更早一步被丢掉。
+const isPublicMd = (p) => /\.(md|markdown)$/i.test(p)
+
+/**
+ * 发布时写入的「本地笔记时间」清单（content/.blog-meta.json）。
+ *
+ * 为什么需要：git 不保存文件 mtime，CI 全新 checkout 后每篇笔记的 mtime
+ * 都是 checkout 那一刻，于是线上所有笔记的日期都变成部署日、排序也全乱。
+ * 发布时间在用户本机，能读到真实 mtime/birthtime，所以由发布管理器把它们
+ * 记下来随 content/ 一起提交，构建时优先用这份清单。
+ */
+const META_FILE = path.join(CONTENT, '.blog-meta.json')
+let noteMeta = {}
+try {
+  const j = JSON.parse(fsSync.readFileSync(META_FILE, 'utf8'))
+  if (j && j.notes && typeof j.notes === 'object') noteMeta = j.notes
+} catch {
+  /* 没有清单（首次发布前 / 老仓库）：回落到文件 stat */
+}
+const metaOf = (rel) => {
+  const m = noteMeta[normalize(rel)]
+  return m && typeof m === 'object' ? m : {}
+}
 
 if (FINALIZE_ONLY) {
   await finalize()
@@ -256,6 +393,19 @@ if (rels.length === 0) {
 const mdRels = rels.filter(isPublicMd)
 const assetRels = rels.filter((p) => !isPublicMd(p) && ASSET_EXTS.has(path.extname(p).toLowerCase()))
 
+// 没有任何公开笔记时**拒绝构建**：历史上真的发生过 CI 绿灯发布出一个空站点
+// （content/ 从未填充，构建照常 exit 0）。空站点比构建失败更难发现。
+if (mdRels.length === 0) {
+  console.error(
+    '[build-content] content/ 里没有任何公开笔记 —— 拒绝构建空站点。' +
+      '先运行发布管理器（npm run manage）把笔记标为公开并发布；确实要构建空站请设 ALLOW_EMPTY=1。'
+  )
+  if (!process.env.ALLOW_EMPTY) process.exit(1)
+}
+
+// 附件目录每次全量重建：不清掉上一次的附件，取消引用的旧图会一直留在产物里。
+await fs.rm(path.join(PUBLIC, 'assets'), { recursive: true, force: true })
+
 // 附件拷贝到 public/assets/<相对路径>
 for (const rel of assetRels) {
   const dest = path.join(PUBLIC, 'assets', rel)
@@ -265,11 +415,36 @@ for (const rel of assetRels) {
 
 // 解析笔记
 const notes = []
+const seenSlugs = new Set()
 for (const rel of mdRels) {
-  const raw = await fs.readFile(path.join(CONTENT, rel), 'utf8')
-  const { data, content } = matter(raw)
+  const abs = path.join(CONTENT, rel)
+  const raw = await fs.readFile(abs, 'utf8')
+  let data, content
+  try {
+    ;({ data, content } = matter(raw))
+  } catch (e) {
+    // 单篇 frontmatter 坏了不该让整次构建失败（否则 --finalize 不会执行，
+    // 源码目录会残留笔记正文）。跳过并大声报出来。
+    console.warn(`[build-content] 跳过 ${rel}：frontmatter 解析失败（${e.message}）`)
+    continue
+  }
+  // 正文里的坏 wikilink 行先修好：摘要 / 字数 / 搜索正文 / 出链都用这份修好的文本
+  // （渲染端 parseNote 也会修，那里服务的是未修的原稿 raw，两边结果一致）
+  content = repairObsidianArtifacts(content)
   const slug = toSlug(rel)
-  const date = parseNoteDate(data)
+  if (seenSlugs.has(slug)) {
+    // a.md 与 a.markdown 会撞成同一个 slug，后者覆盖前者
+    console.warn(`[build-content] 跳过 ${rel}：slug「${slug}」已被占用（.md / .markdown 同名）`)
+    continue
+  }
+  seenSlugs.add(slug)
+  const meta = metaOf(rel)
+  const st = await fs.stat(abs)
+  const mtime = meta.mtime ? new Date(meta.mtime) : st.mtime
+  // 笔记日期：frontmatter 显式声明优先，否则用**最后修改时间**。
+  // 不用 birthtime：笔记通常是整库拷进 vault 的，birthtime 全部等于拷贝那一刻
+  // （实测 116 篇全落在同一天），拿它当日期等于又回到「所有笔记日期都一样」。
+  const date = parseNoteDate(data) ?? mtime
   notes.push({
     slug,
     path: normalize(rel),
@@ -281,9 +456,10 @@ for (const rel of mdRels) {
     tags: extractTags(data, content),
     isPublic: true,
     wordCount: wordCountOf(content),
-    noteDate: date ? date.toISOString() : null,
-    updatedAt: (await fs.stat(path.join(CONTENT, rel))).mtime.toISOString(),
+    noteDate: isNaN(+date) ? null : date.toISOString(),
+    updatedAt: mtime.toISOString(),
     excerpt: excerptOf(content, 120),
+    searchText: searchTextOf(content),
   })
 }
 notes.sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))
@@ -310,6 +486,32 @@ const refRows = new Map() // sourceSlug -> Set<targetSlug>
 const linkIndexAssets = assetRels.slice()
 const assetSet = new Set(linkIndexAssets.map((p) => normalize(p)))
 
+/** 嵌入目标 → 附件路径。与 src/lib/obsidian.ts 的 resolveEmbedPath 保持同一套规则：
+ *  精确路径 → 补全扩展名 → 精确文件名 → 任意目录下同名（大小写不敏感）。 */
+function resolveAsset(target, assets) {
+  const t = normalize(target)
+  if (!t) return null
+  const exts = [...ASSET_EXTS]
+  const hasExt = (p) => {
+    const i = p.lastIndexOf('.')
+    return i >= 0 && ASSET_EXTS.has(p.slice(i).toLowerCase())
+  }
+  const candidates = [t]
+  if (!hasExt(t)) for (const e of exts) candidates.push(t + e)
+  const base = t.split('/').pop() || t
+  if (base !== t) {
+    candidates.push(base)
+    if (!hasExt(base)) for (const e of exts) candidates.push(base + e)
+  }
+  for (const c of candidates) if (assets.has(c)) return c
+  const lowered = candidates.map((c) => c.toLowerCase())
+  for (const p of assets) {
+    const pl = p.toLowerCase()
+    for (const c of lowered) if (pl === c || pl.endsWith('/' + c)) return p
+  }
+  return null
+}
+
 for (const n of notes) {
   const { links, embeds } = extractWikiRefs(n.raw)
   const targets = []
@@ -320,9 +522,11 @@ for (const n of notes) {
   for (const emb of embeds) {
     const { target } = parseWikilink(emb)
     if (!target) continue
-    // 嵌入解析：附件优先（不算出链），解析到笔记的算出链
-    const assetPath = [...assetSet].find((p) => p === normalize(target) || p.endsWith('/' + normalize(target)))
-    if (assetPath) continue
+    // 嵌入解析：附件优先（不算出链），解析到笔记的算出链。
+    // 必须与前端 src/lib/obsidian.ts 的 resolveEmbedPath 用同一套规则，
+    // 否则 ![[diagram]]（省略扩展名）在页面上能显示成图，构建却把它记成笔记出链，
+    // 于是反链区冒出一条假的「未创建」。
+    if (resolveAsset(target, assetSet)) continue
     targets.push(target)
   }
   const slugs = new Set()
@@ -403,6 +607,15 @@ await fs.writeFile(
   JSON.stringify({ notes: indexNotes, assets: linkIndexAssets, generatedAt: new Date().toISOString() })
 )
 
+// 全文搜索索引：slug → 纯文本。首页搜索框按需懒加载（只有真的输入时才拉），
+// 这样「搜索标题、正文、路径、标签」才名副其实 —— 原先只匹配 120 字摘要。
+const searchNotes = {}
+for (const n of notes) searchNotes[n.slug] = n.searchText
+await fs.writeFile(
+  path.join(PUBLIC, 'data', 'search.json'),
+  JSON.stringify({ v: 1, notes: searchNotes })
+)
+
 await fs.mkdir(generatedDir, { recursive: true })
 await fs.writeFile(
   path.join(generatedDir, 'release-tag.ts'),
@@ -471,6 +684,20 @@ async function finalize() {
       console.log(`[build-content] 已把 ${path.relative(ROOT, src) || src} 移到用户数据目录`)
     } catch (e) {
       if (e.code === 'ENOENT') continue // 没构建出来就跳过
+      if (e.code === 'EXDEV') {
+        // 跨盘（源码在 C:，用户数据目录在 D: 等）rename 会失败。
+        // 不处理的话上次的产物已被上面 rm 掉、新的又搬不走，等于两头落空。
+        try {
+          await fs.cp(src, dst, { recursive: true })
+          await fs.rm(src, { recursive: true, force: true })
+          moved += 1
+          console.log(`[build-content] 已把 ${path.relative(ROOT, src) || src} 复制到用户数据目录（跨盘）`)
+          continue
+        } catch (e2) {
+          console.warn(`[build-content] ${path.relative(ROOT, src)} 跨盘搬移失败：${e2.message}`)
+          continue
+        }
+      }
       console.warn(`[build-content] ${path.relative(ROOT, src)} 未能移走（留在源码目录）：${e.message}`)
     }
   }
