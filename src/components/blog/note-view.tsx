@@ -14,12 +14,12 @@ import {
   ArrowLeft,
   Calendar,
   FileText,
-  GripVertical,
   Hash,
   Link2,
   ListTree,
   Lock,
   Minus,
+  Move,
   Pencil,
   RotateCw,
 } from 'lucide-react'
@@ -694,14 +694,6 @@ function NoteToc({ headings }: { headings: HeadingEntry[] }) {
         className="flex touch-none cursor-grab select-none items-center gap-1.5 border-b px-3 py-2 active:cursor-grabbing"
         onPointerDown={startDrag}
       >
-        {/* 明确的拖动按键：手机上按住这里就能拖，不用去猜标题栏 */}
-        <span
-          className="-ml-1 flex shrink-0 items-center rounded p-0.5 text-muted-foreground/70 hover:text-foreground"
-          aria-hidden
-          title={t.tocDrag}
-        >
-          <GripVertical className="size-3.5" />
-        </span>
         <ListTree className="size-3.5 shrink-0 text-muted-foreground" aria-hidden />
         <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
           <T k="toc" />
@@ -718,7 +710,7 @@ function NoteToc({ headings }: { headings: HeadingEntry[] }) {
         </button>
       </div>
       <nav
-        className="toc mx-2 max-h-[min(62vh,460px)] overflow-y-auto py-2"
+        className="toc mx-2 max-h-[min(62vh,460px)] overflow-y-auto pt-2 pb-4"
         style={size ? { maxHeight: size.h } : undefined}
         aria-label={t.toc}
       >
@@ -740,6 +732,16 @@ function NoteToc({ headings }: { headings: HeadingEntry[] }) {
           ))}
         </ul>
       </nav>
+      {/* 移动手柄：通用的四向十字箭头，固定在左下角（右下角留给缩放） */}
+      <div
+        className="absolute bottom-0 left-0 z-10 flex size-5 cursor-move touch-none items-center justify-center rounded-bl-xl text-muted-foreground/60 transition-colors hover:text-foreground"
+        onPointerDown={startDrag}
+        title={t.tocDrag}
+        aria-hidden
+        role="presentation"
+      >
+        <Move className="size-3.5" />
+      </div>
       <div
         className="absolute bottom-0 right-0 z-10 size-5 cursor-nwse-resize touch-none"
         onPointerDown={startResize}
