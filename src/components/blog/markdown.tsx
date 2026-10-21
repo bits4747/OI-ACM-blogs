@@ -140,10 +140,6 @@ function MdLink({
               heading={heading}
               anchor={anchorEl}
               onClose={() => setPreviewOpen(false)}
-              onOpenNote={() => {
-                setPreviewOpen(false)
-                navigateToNote(slug, heading && !heading.startsWith('^') ? heading : undefined)
-              }}
               onKeepOpen={clearTimers}
             />,
             document.body

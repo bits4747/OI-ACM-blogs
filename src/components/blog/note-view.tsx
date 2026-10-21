@@ -181,11 +181,26 @@ export function NoteView({ slug }: { slug: string }) {
         .replace(/\s+/g, '-')
         .replace(/[^\p{L}\p{N}\-_]/gu, '')
       clearPendingHeading()
-      if (id) {
-        setTimeout(() => {
-          document.getElementById(id)?.scrollIntoView({ behavior: 'smooth' })
-        }, 300)
+      if (!id) return
+      // 新标签页打开时内容是「现加载现排版」的：代码块语法高亮 / 公式 / 图片会在几百毫秒后
+      // 还在把目标小节往下推，旧的「固定 300ms 滚一次」在 SPA 里够用（内容早已缓存），
+      // 但新标签冷加载会落空（实测长笔记里一次性滚动后 scrollY 仍是 0）。
+      // 改为轮询到元素出现再滚，并在其后连续多滚几次吸收后续 reflow，直到稳定或超时。
+      // 注意：本 effect 不能 return cleanup —— 上面 clearPendingHeading() 会把 pendingHeading
+      // dep 同步置 null 触发 effect 立即重跑，React 先执行旧 cleanup，cancelled 反杀刚起的轮询。
+      // 让轮询自己用 tries 上限收尾即可（离开页面后定时器至多多跑约 4 秒，无副作用）。
+      let tries = 0
+      const MAX_TRIES = 40
+      const step = () => {
+        const el = document.getElementById(id)
+        if (el) {
+          el.scrollIntoView({ behavior: 'auto', block: 'start' })
+          if (tries++ < MAX_TRIES && tries < 8) return void setTimeout(step, 200)
+          return
+        }
+        if (tries++ < MAX_TRIES) setTimeout(step, 100)
       }
+      setTimeout(step, 80)
     }
   }, [data, pendingHeading, clearPendingHeading])
 

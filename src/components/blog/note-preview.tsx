@@ -22,12 +22,11 @@ interface NotePreviewPopupProps {
   heading?: string
   anchor: HTMLElement
   onClose: () => void
-  onOpenNote: () => void
   onKeepOpen: () => void
 }
 
 /** Obsidian 风格的链接悬浮预览浮窗 */
-export function NotePreviewPopup({ slug, heading, anchor, onClose, onOpenNote, onKeepOpen }: NotePreviewPopupProps) {
+export function NotePreviewPopup({ slug, heading, anchor, onClose, onKeepOpen }: NotePreviewPopupProps) {
   const t = useT()
   // 静态站纯只读：无管理视图
   const isAdmin = false
@@ -83,6 +82,17 @@ export function NotePreviewPopup({ slug, heading, anchor, onClose, onOpenNote, o
 
   const blockId = heading?.startsWith('^') ? heading.slice(1) : undefined
   const isBlockRef = !!blockId
+
+  // 「打开笔记 ↗」改为新标签页打开，所以这里必须是真实可跳转的 URL，
+  // 不能走 navigateToNote（那是 SPA 内部改状态，只会换掉当前页）。
+  // 带 h 是为了 [[笔记#小节]]：新标签加载后 store 从 ?h= 恢复 pendingHeading，同样定位到小节。
+  // ^块引用不适用小节定位（isBlockRef），跳过。
+  const noteHref = (() => {
+    const p = new URLSearchParams()
+    p.set('note', slug)
+    if (heading && !isBlockRef) p.set('h', heading)
+    return '?' + p.toString()
+  })()
 
   // 段落链接：渲染完成后滚动到目标标题并短暂高亮
   // 多级标题路径（[[笔记#A#B]]）以最后一段为准，与 Obsidian 语义一致
@@ -151,13 +161,22 @@ export function NotePreviewPopup({ slug, heading, anchor, onClose, onOpenNote, o
       >
         <div className="flex items-center justify-between gap-2 border-b bg-muted/40 px-3 py-1.5">
           <span className="truncate text-xs font-medium text-foreground/80">{title}</span>
-          <button
-            type="button"
+          <a
+            href={noteHref}
+            target="_blank"
+            rel="noopener noreferrer"
+            title={t.openNoteNewTab}
             className="shrink-0 rounded px-1.5 py-0.5 text-xs text-muted-foreground transition-colors hover:bg-background hover:text-primary"
-            onClick={onOpenNote}
+            onClick={(e) => {
+              // 浮窗是 createPortal 渲染在正文链接 <a> 的 children 里的，React 事件按组件树冒泡，
+              // 不 stopPropagation 会一路冒到外层 <a onClick> → navigateToNote → 当前页也被换掉，
+              // 变成「新标签 + 当前页一起跳」。这里只该开新标签，当前页保持不动。
+              e.stopPropagation()
+              onClose()
+            }}
           >
             {t.openNoteArrow}
-          </button>
+          </a>
         </div>
         <div className="max-h-[calc(80vh-34px)] overflow-y-auto px-4 py-3">{body}</div>
       </div>

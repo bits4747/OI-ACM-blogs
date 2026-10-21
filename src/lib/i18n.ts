@@ -71,6 +71,7 @@ export const DICT = {
     noteMissingBody: '目标笔记不存在或已被删除。',
     blockNotFound: '未找到对应文本块，显示全文：',
     openNoteArrow: '打开笔记 ↗',
+    openNoteNewTab: '在新标签页打开这篇笔记',
     // 页脚
     vaultDriven: 'Obsidian Vault 驱动',
     // 其他
@@ -146,6 +147,7 @@ export const DICT = {
     noteMissingBody: 'The linked note does not exist or has been deleted.',
     blockNotFound: 'Block not found — showing the full note:',
     openNoteArrow: 'Open note ↗',
+    openNoteNewTab: 'Open this note in a new tab',
     vaultDriven: 'Powered by Obsidian Vault',
     indexFailed: 'Failed to load the note index',
     calloutLabel: {
