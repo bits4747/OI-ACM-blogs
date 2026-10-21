@@ -1,6 +1,14 @@
 'use client'
 
-import { useEffect, useMemo, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent } from 'react'
+import {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type CSSProperties,
+  type PointerEvent as ReactPointerEvent,
+  type ReactNode,
+} from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   ArrowLeft,
@@ -24,13 +32,21 @@ import {
   type RefItem,
 } from '@/lib/api'
 import katex from 'katex'
-import { extractHeadings, splitHeadingSegments, type HeadingEntry } from '@/lib/obsidian'
+import {
+  extractHeadings,
+  splitHeadingSegments,
+  stripInlineFormatting,
+  type HeadingEntry,
+} from '@/lib/obsidian'
 import { useBlog } from '@/lib/store'
 import { useT } from '@/lib/i18n'
 import { T } from '@/components/blog/t-text'
 import { MarkdownRenderer } from '@/components/blog/markdown'
 
-/** 大纲条目文字：公式用 KaTeX 渲染，不再输出 $..$ 原符号 */
+/**
+ * 大纲条目文字：公式交给 KaTeX，行内排版（**粗体**、*斜体*、~~删除线~~、
+ * ==高亮==、`代码`）全部渲染成真正的元素 —— 大纲里不允许出现 markdown 原文标记。
+ */
 function HeadingText({ text }: { text: string }) {
   const segs = useMemo(() => splitHeadingSegments(text), [text])
   return (
@@ -45,11 +61,74 @@ function HeadingText({ text }: { text: string }) {
             }}
           />
         ) : (
-          <span key={i}>{s.value}</span>
+          <span key={i}>{renderInlineMarkup(s.value)}</span>
         )
       )}
     </>
   )
+}
+
+/**
+ * 把一段标题文字里的行内标记渲染成元素（递归支持嵌套）。
+ * `_斜体_` 只在词边界上识别，避免把 `snake_case` 这类标题吃掉下划线；
+ * 这里刻意不用后行断言（lookbehind），旧版 Safari 会在解析阶段直接报错。
+ */
+function renderInlineMarkup(src: string): ReactNode {
+  const out: ReactNode[] = []
+  // 顺序很重要：*** / ** / * 由长到短，且收尾不允许是更长星号串的一部分
+  //（`**嵌套*斜体***` 若让 `**` 先吃掉 `***` 的前两个星号，就会漏掉里面的斜体）。
+  const re =
+    /\*\*\*([\s\S]+?)\*\*\*|\*\*([\s\S]+?)\*\*(?!\*)|__([\s\S]+?)__(?!_)|~~([\s\S]+?)~~|==([\s\S]+?)==|`([^`\n]+)`|(^|[^\w])_([^_\n]+?)_(?=[^\w]|$)|(\*)([^*\n]+?)\*/g
+  let last = 0
+  let key = 0
+  let m: RegExpExecArray | null
+  while ((m = re.exec(src)) !== null) {
+    if (m.index > last) out.push(src.slice(last, m.index))
+    if (m[1] !== undefined) {
+      // ***粗斜*** = 加粗 + 斜体
+      out.push(
+        <strong key={key++}>
+          <em>{renderInlineMarkup(m[1])}</em>
+        </strong>
+      )
+    } else if (m[2] !== undefined) {
+      out.push(<strong key={key++}>{renderInlineMarkup(m[2])}</strong>)
+    } else if (m[3] !== undefined) {
+      out.push(<strong key={key++}>{renderInlineMarkup(m[3])}</strong>)
+    } else if (m[4] !== undefined) {
+      out.push(<s key={key++}>{renderInlineMarkup(m[4])}</s>)
+    } else if (m[5] !== undefined) {
+      out.push(
+        <mark key={key++} className="toc-hl">
+          {renderInlineMarkup(m[5])}
+        </mark>
+      )
+    } else if (m[6] !== undefined) {
+      out.push(
+        <code key={key++} className="toc-code">
+          {m[6]}
+        </code>
+      )
+    } else if (m[8] !== undefined) {
+      if (m[7]) out.push(m[7])
+      out.push(<em key={key++}>{renderInlineMarkup(m[8])}</em>)
+    } else if (m[10] !== undefined) {
+      out.push(<em key={key++}>{renderInlineMarkup(m[10])}</em>)
+    }
+    last = re.lastIndex
+  }
+  if (last < src.length) out.push(src.slice(last))
+  // 残留的孤立标记（如标题写成「二度进阶***」，CommonMark 也不会把它当强调）
+  // 在首尾一并清掉，避免大纲里出现光秃秃的 *** —— 但只动两端，
+  // 中间的文字（`a=b`、`snake_case`、`__int128`）原样保留。
+  if (out.length && typeof out[0] === 'string') {
+    out[0] = (out[0] as string).replace(/^[*~=]+/, '')
+  }
+  const tail = out.length - 1
+  if (tail >= 0 && typeof out[tail] === 'string') {
+    out[tail] = (out[tail] as string).replace(/[*~=]+$/, '')
+  }
+  return out
 }
 
 function renderMath(tex: string): string {
@@ -547,8 +626,44 @@ function NoteToc({ headings }: { headings: HeadingEntry[] }) {
   const scrollTo = (id: string) => {
     const el = document.getElementById(id)
     if (!el) return
-    const y = el.getBoundingClientRect().top + window.scrollY - 96
-    window.scrollTo({ top: y, behavior: 'smooth' })
+    const align = () => Math.round(el.getBoundingClientRect().top + window.scrollY - 96)
+    const apply = () => window.scrollTo({ top: align(), behavior: 'auto' })
+
+    apply()
+
+    // 正文图片是 loading="lazy"：点击时它们还没加载、没有高度，文档是「矮」的，
+    // 算出的落点偏上（甚至被夹到文档底部），随后图片陆续加载把标题一路往下推
+    // —— 这正是「点一次只下滑一小段、要连点几次」的根因。两路一起校正：
+    //   1) 监听目标之前的图片 load，每张加载完就重新对齐（最可靠，不依赖帧）；
+    //   2) rAF 连续重算，兜住字体/折叠等其它位移。
+    let stable = 0
+    let frames = 0
+    const step = () => {
+      if (Math.abs(align() - Math.round(window.scrollY)) <= 2) {
+        if (++stable >= 3) return
+      } else {
+        stable = 0
+        apply()
+      }
+      if (++frames < 120) requestAnimationFrame(step)
+    }
+    requestAnimationFrame(step)
+
+    const targetTop = el.getBoundingClientRect().top + window.scrollY
+    const cleanups: Array<() => void> = []
+    for (const img of Array.from(document.querySelectorAll<HTMLImageElement>('.markdown-body img'))) {
+      if (img.complete) continue
+      if (img.getBoundingClientRect().top + window.scrollY > targetTop) continue
+      const onLoad = () => {
+        stable = 0
+        apply()
+      }
+      img.addEventListener('load', onLoad, { once: true })
+      cleanups.push(() => img.removeEventListener('load', onLoad))
+    }
+    if (cleanups.length) {
+      window.setTimeout(() => cleanups.forEach((fn) => fn()), 10000)
+    }
   }
 
   if (collapsed) {
@@ -613,7 +728,7 @@ function NoteToc({ headings }: { headings: HeadingEntry[] }) {
               <a
                 href={'#' + h.id}
                 className={'toc-item block truncate py-1 pr-2 text-xs leading-5 ' + (activeId === h.id ? 'toc-active' : '')}
-                title={h.text}
+                title={stripInlineFormatting(h.text)}
                 onClick={(e) => {
                   e.preventDefault()
                   scrollTo(h.id)

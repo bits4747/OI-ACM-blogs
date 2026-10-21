@@ -239,6 +239,33 @@ export function stripHeadingMarkup(input: string): string {
 }
 
 /**
+ * 剥掉标题里的**行内排版标记**（加粗/斜体/删除线/高亮/行内代码），只留可见文字。
+ *
+ * 用途只有一处：算锚点 id。正文一侧的 id 来自 mdast 的文本节点（`**粗**` 早已
+ * 解析成 strong 节点，文本就是「粗」），所以大纲一侧也必须先把标记剥干净，
+ * 否则 `_斜体_` 这类标题会算出 `_斜体_` 而正文算出 `斜体`，锚点直接对不上。
+ * 注意不能无脑删 `_`：`snake_case` 这种标题正文一侧是保留 `_` 的。
+ */
+export function stripInlineFormatting(input: string): string {
+  let s = String(input ?? '')
+  let prev = ''
+  // 嵌套（**粗*斜***）需要反复剥，直到不再变化
+  while (prev !== s) {
+    prev = s
+    s = s
+      .replace(/\*\*([\s\S]+?)\*\*/g, '$1')
+      .replace(/__([\s\S]+?)__/g, '$1')
+      .replace(/~~([\s\S]+?)~~/g, '$1')
+      .replace(/==([\s\S]+?)==/g, '$1')
+      .replace(/`([^`\n]+)`/g, '$1')
+      .replace(/\*([^*\n]+?)\*/g, '$1')
+      // `_斜体_` 只在词边界上剥，避免把 snake_case 变成 snakecase
+      .replace(/(^|[^\w])_([^_\n]+?)_(?=[^\w]|$)/g, '$1$2')
+  }
+  return s.trim()
+}
+
+/**
  * 标题匹配用的归一化文本：URL 解码 → 剥掉 markdown 语法 → 压空白 → 小写。
  *
  * Obsidian 写出的 `[[笔记#标题]]` 里，标题可能是原文，也可能是百分号编码过的，
@@ -274,7 +301,7 @@ export function normalizeHeadingText(input: string): string {
 
 /** 由任意标题原文算出锚点 id（与 extractHeadings / remark 阶段共用同一算法） */
 export function headingIdFromText(text: string): string {
-  return headingIdOf(stripHeadingMarkup(text))
+  return headingIdOf(stripInlineFormatting(stripHeadingMarkup(text)))
 }
 
 /** 标题的**展示**文字：URL 解码 + 剥掉 markdown/wikilink 语法（保留原大小写） */
@@ -335,9 +362,11 @@ export function extractHeadings(content: string): HeadingEntry[] {
   // scroll-spy 会全部指向第一个标题。规则与 GitHub/Obsidian 一致：-1、-2…
   const seen = new Map<string, number>()
   for (const m of stripped.matchAll(/^ {0,3}(#{1,6})\s+(.+?)\s*#*\s*$/gm)) {
+    // text 保留行内排版标记（加粗等），大纲里按格式渲染而不是显示 `**`；
+    // id 必须用剥干净的纯文字，才能和正文一侧（mdast 文本节点）算出的 id 一致。
     const text = stripHeadingMarkup(m[2])
     if (!text) continue
-    const base = headingIdOf(text)
+    const base = headingIdOf(stripInlineFormatting(text))
     const n = seen.get(base) ?? 0
     seen.set(base, n + 1)
     out.push({ level: m[1].length, text, id: n === 0 ? base : `${base}-${n}` })
@@ -361,7 +390,8 @@ export function splitHeadingSegments(input: string): HeadingSegment[] {
   let buf = ''
   const flush = () => {
     if (buf) {
-      out.push({ type: 'text', value: buf.replace(/~~([\s\S]+?)~~/g, '$1') })
+      // 行内排版标记原样保留，交给大纲的 renderInlineMarkup 渲染（不再预先剥掉）
+      out.push({ type: 'text', value: buf })
       buf = ''
     }
   }
