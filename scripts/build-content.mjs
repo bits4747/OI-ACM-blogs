@@ -588,6 +588,58 @@ for (const n of notes) {
   })
 }
 
+/**
+ * 目录树：首页「逐层下钻」要知道「当前文件夹下有哪些子文件夹、各有多少篇」。
+ *
+ * 只从已导出的笔记推导（indexNotes 里全是公开笔记），私密笔记的目录名不该出现在
+ * 站点导航里。folder 本身是扁平字符串（`比赛/NOI 系列`），这里按 `/` 拆开逐级建节点。
+ *
+ * directCount = 直接放在该文件夹里的篇数；totalCount = 含所有子孙的合计。
+ */
+function buildFolderTree(items) {
+  const root = { path: '', name: '', directCount: 0, totalCount: 0, children: new Map() }
+  for (const it of items) {
+    const f = it.folder || ''
+    root.totalCount += 1
+    if (!f) {
+      root.directCount += 1
+      continue
+    }
+    const parts = f.split('/')
+    let cur = root
+    for (let i = 0; i < parts.length; i += 1) {
+      const name = parts[i]
+      let node = cur.children.get(name)
+      if (!node) {
+        node = {
+          path: parts.slice(0, i + 1).join('/'),
+          name,
+          directCount: 0,
+          totalCount: 0,
+          children: new Map(),
+        }
+        cur.children.set(name, node)
+      }
+      node.totalCount += 1
+      cur = node
+    }
+    cur.directCount += 1
+  }
+  const toArray = (node) =>
+    [...node.children.values()]
+      .sort((a, b) => (a.name < b.name ? -1 : a.name > b.name ? 1 : 0))
+      .map((c) => ({
+        path: c.path,
+        name: c.name,
+        directCount: c.directCount,
+        totalCount: c.totalCount,
+        children: toArray(c),
+      }))
+  return toArray(root)
+}
+
+const folderTree = buildFolderTree(indexNotes)
+
 // 发布标记：把「本次构建的数据」绑定到一个唯一 URL 参数上，
 // 让浏览器不可能复用上一版 /data/*.json 的缓存（GitHub Pages 的 max-age=600
 // 会导致取消公开后 10 分钟内仍能看到旧内容）。
@@ -607,6 +659,9 @@ await fs.writeFile(
   JSON.stringify({
     notes: indexNotes,
     assets: linkIndexAssets,
+    // 目录树（由 notes[].folder 推导）：首页逐层下钻用它列子文件夹与篇数，
+    // 不用每次遍历全部笔记现算，也能表达「自己没笔记、只有子目录」的容器目录。
+    folders: folderTree,
     // 把发布标记也写进索引：前端的 HTML/JS 会被 GitHub Pages 缓存 10 分钟，
     // 旧页面里的 RELEASE_TAG 是旧的；只有从「刚拉下来的索引」里读到新标记，
     // 才能立刻按新标记去取笔记，不用等缓存过期。

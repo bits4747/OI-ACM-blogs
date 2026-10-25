@@ -202,10 +202,13 @@ function FooterLine() {
 }
 
 /** 当前视图对应的 URL 查询串 */
-function queryOf(view: string, slug: string | null, activeTag: string | null): string {
+function queryOf(view: string, slug: string | null, activeTag: string | null, folder: string): string {
   const params = new URLSearchParams()
   if (view === 'note' && slug) params.set('note', slug)
   else if (activeTag) params.set('tag', activeTag)
+  // 文件夹用 ?folder= 深链，刷新/分享/前进后退都能回到同一层。
+  // 笔记页也带上：从「比赛/NF」打开一篇再点返回，要回到 NF 而不是根目录。
+  if (folder) params.set('folder', folder)
   return params.toString()
 }
 
@@ -229,6 +232,7 @@ export function BlogApp() {
   const view = useBlog((s) => s.view)
   const slug = useBlog((s) => s.slug)
   const activeTag = useBlog((s) => s.activeTag)
+  const folder = useBlog((s) => s.folder)
   // 有几处文案只能靠 CSS ::before 渲染（如笔记嵌入卡片的角标），CSS 读不到 JS 状态，
   // 所以把当前语言写到 <html data-lang>，让 globals.css 能按语言换 content。
   const lang = useLang((s) => s.lang)
@@ -245,9 +249,14 @@ export function BlogApp() {
       const params = new URLSearchParams(window.location.search)
       const note = params.get('note')
       const tag = params.get('tag')
+      const dir = params.get('folder') || ''
       const s = useBlog.getState()
-      if (note) s.navigateToNote(note)
-      else s.goHome(tag)
+      if (note) {
+        // 先对齐来源文件夹，再进笔记：返回时才能回到正确的层级
+        if (dir !== s.folder) s.openFolder(dir)
+        s.navigateToNote(note)
+      } else if (tag) s.goHome(tag)
+      else s.openFolder(dir)
     }
     window.addEventListener('popstate', onPop)
     return () => window.removeEventListener('popstate', onPop)
@@ -255,7 +264,7 @@ export function BlogApp() {
 
   // 视图变化 → 写入历史记录（前进/后退可用）；popstate 引起的变更不重复入栈
   useEffect(() => {
-    const qs = queryOf(view, slug, activeTag)
+    const qs = queryOf(view, slug, activeTag, folder)
     if (isPopstateNavigation) {
       isPopstateNavigation = false
       return
@@ -266,7 +275,7 @@ export function BlogApp() {
       return
     }
     window.history.pushState(null, '', qs ? '?' + qs : window.location.pathname)
-  }, [view, slug, activeTag, firstSyncRef])
+  }, [view, slug, activeTag, folder, firstSyncRef])
 
   return (
     <QueryClientProvider client={client}>

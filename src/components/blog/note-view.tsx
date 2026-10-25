@@ -203,6 +203,7 @@ function PrivateLock({ slug }: { slug: string }) {
 
 export function NoteView({ slug }: { slug: string }) {
   const goHome = useBlog((s) => s.goHome)
+  const openFolder = useBlog((s) => s.openFolder)
   const navigateToNote = useBlog((s) => s.navigateToNote)
   const setTag = useBlog((s) => s.setTag)
   const pendingHeading = useBlog((s) => s.pendingHeading)
@@ -388,7 +389,20 @@ export function NoteView({ slug }: { slug: string }) {
           <ArrowLeft className="size-4" aria-hidden />
           <T k="back" />
         </button>
-        {note.folder && <span className="opacity-60">/ {note.folder} /</span>}
+        {note.folder && (
+          <span className="opacity-60">
+            /{' '}
+            <button
+              type="button"
+              onClick={() => openFolder(note.folder)}
+              className="rounded px-0.5 transition-colors hover:text-foreground hover:underline"
+              title={t.openFolder(note.folder)}
+            >
+              {note.folder.split('/').join(' › ')}
+            </button>{' '}
+            /
+          </span>
+        )}
         <span className="truncate font-medium text-foreground/80">{note.title}</span>
       </nav>
 

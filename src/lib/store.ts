@@ -5,22 +5,53 @@ import { persist } from 'zustand/middleware'
 
 export type ViewKind = 'home' | 'note'
 
-/** 首次加载时从 URL 恢复视图（?note= / ?h= / ?tag=），保证深链与前进后退正确 */
+/** 首次加载时从 URL 恢复视图（?note= / ?h= / ?tag= / ?folder=），保证深链与前进后退正确 */
 function initialViewFromUrl(): Pick<
   BlogState,
-  'view' | 'slug' | 'activeTag' | 'pendingHeading' | 'pendingText'
+  'view' | 'slug' | 'activeTag' | 'folder' | 'pendingHeading' | 'pendingText'
 > {
   if (typeof window === 'undefined')
-    return { view: 'home', slug: null, activeTag: null, pendingHeading: null, pendingText: null }
+    return {
+      view: 'home',
+      slug: null,
+      activeTag: null,
+      folder: '',
+      pendingHeading: null,
+      pendingText: null,
+    }
   const params = new URLSearchParams(window.location.search)
   const note = params.get('note')
   const tag = params.get('tag')
+  const folder = params.get('folder') || ''
   // ?h= 是「打开时定位到某小节」，由浮窗「打开笔记 ↗」写入；消费一次即清除（note-view）
   const h = params.get('h')
   if (note)
-    return { view: 'note', slug: note, activeTag: null, pendingHeading: h, pendingText: null }
-  if (tag) return { view: 'home', slug: null, activeTag: tag, pendingHeading: null, pendingText: null }
-  return { view: 'home', slug: null, activeTag: null, pendingHeading: null, pendingText: null }
+    return {
+      view: 'note',
+      slug: note,
+      activeTag: null,
+      // 笔记页也带着来源文件夹：点「返回」回到进来时那一层，而不是根目录
+      folder,
+      pendingHeading: h,
+      pendingText: null,
+    }
+  if (tag)
+    return {
+      view: 'home',
+      slug: null,
+      activeTag: tag,
+      folder: '',
+      pendingHeading: null,
+      pendingText: null,
+    }
+  return {
+    view: 'home',
+    slug: null,
+    activeTag: null,
+    folder,
+    pendingHeading: null,
+    pendingText: null,
+  }
 }
 
 /**
@@ -37,10 +68,14 @@ interface BlogState {
   /** 打开笔记后要滚到的正文片段（搜索命中正文时由结果行写入，消费一次即清除） */
   pendingText: string | null
   activeTag: string | null
+  /** 首页当前所在文件夹（相对库根的路径，'' = 全部）。逐层下钻靠它定位。 */
+  folder: string
   search: string
   navigateToNote: (slug: string, heading?: string, text?: string) => void
   goHome: (tag?: string | null) => void
   setTag: (tag: string | null) => void
+  /** 下钻到某个文件夹（'' = 回到全部） */
+  openFolder: (folder: string) => void
   setSearch: (s: string) => void
   clearPendingHeading: () => void
   clearPendingText: () => void
@@ -62,8 +97,17 @@ export const useBlog = create<BlogState>()(
           pendingText: text ?? null,
           search: s.search,
         })),
-      goHome: (tag) => set({ view: 'home', slug: null, activeTag: tag ?? null }),
-      setTag: (tag) => set({ view: 'home', activeTag: tag }),
+      // 从笔记返回首页时保留当前文件夹：在「比赛/NF」里打开一篇再点返回，
+      // 应该回到 NF，而不是被扔回根目录
+      goHome: (tag) =>
+        set((s) => ({
+          view: 'home',
+          slug: null,
+          activeTag: tag ?? null,
+          folder: tag ? '' : s.folder,
+        })),
+      setTag: (tag) => set({ view: 'home', activeTag: tag, folder: '' }),
+      openFolder: (folder) => set({ view: 'home', activeTag: null, folder }),
       setSearch: (s) => set({ search: s }),
       clearPendingHeading: () => set({ pendingHeading: null }),
       clearPendingText: () => set({ pendingText: null }),

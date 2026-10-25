@@ -50,6 +50,19 @@ export interface RefItem {
   resolved?: boolean
 }
 
+/** 目录树节点（构建时由 notes[].folder 推导，见 scripts/build-content.mjs） */
+export interface FolderNode {
+  /** 相对库根的路径，如 `比赛/NOI 系列`；根节点为 '' */
+  path: string
+  /** 末级文件夹名，如 `NOI 系列` */
+  name: string
+  /** 直接放在该文件夹里的公开笔记数 */
+  directCount: number
+  /** 含所有子孙的公开笔记合计 */
+  totalCount: number
+  children: FolderNode[]
+}
+
 export interface LinkIndex {
   notes: { slug: string; path: string; title: string; isPublic: boolean; excerpt?: string }[]
   assets: { path: string }[]
@@ -75,7 +88,7 @@ function slugFile(slug: string): string {
 }
 
 // 索引拉取一次，全站共享
-let indexPromise: Promise<{ notes: NoteListItem[]; assets: string[] }> | null = null
+let indexPromise: Promise<{ notes: NoteListItem[]; assets: string[]; folders: FolderNode[] }> | null = null
 
 // GitHub Pages 给 /data/*.json 发的是 `Cache-Control: max-age=600`，
 // 即发布后最多 10 分钟内浏览器会直接用本地缓存，**连 revalidate 都不做**。
@@ -117,7 +130,7 @@ function indexBucket(): string {
   return String(Math.floor(Date.now() / 60000))
 }
 
-function fetchIndex(): Promise<{ notes: NoteListItem[]; assets: string[] }> {
+function fetchIndex(): Promise<{ notes: NoteListItem[]; assets: string[]; folders: FolderNode[] }> {
   if (!indexPromise) {
     const fresh = freshTag()
     const q = '?b=' + indexBucket() + (fresh ? '&fresh=' + encodeURIComponent(fresh) : '')
@@ -127,9 +140,14 @@ function fetchIndex(): Promise<{ notes: NoteListItem[]; assets: string[] }> {
         if (!r.ok) throw new Error(tNow().indexFailed)
         return r.json()
       })
-      .then((data: { notes: NoteListItem[]; assets: string[]; releaseTag?: string }) => {
+      .then((data: { notes: NoteListItem[]; assets: string[]; folders?: FolderNode[]; releaseTag?: string }) => {
         if (data && typeof data.releaseTag === 'string' && data.releaseTag) liveTag = data.releaseTag
-        return { notes: data.notes || [], assets: data.assets || [] }
+        return {
+          notes: data.notes || [],
+          assets: data.assets || [],
+          // 旧站点（本次改动之前发布的）没有 folders 字段，退回空树由前端按 notes 推导
+          folders: data.folders || [],
+        }
       })
       .catch((e) => {
         // 失败不要污染单例，否则整站会一直卡在报错态
@@ -203,6 +221,12 @@ export async function fetchSiteInfo(): Promise<SiteInfo> {
 export async function fetchNotes(_all = false): Promise<NoteListItem[]> {
   const idx = await fetchIndex()
   return idx.notes
+}
+
+/** 目录树（首页逐层下钻用）。旧索引没有该字段时返回空数组。 */
+export async function fetchFolders(): Promise<FolderNode[]> {
+  const idx = await fetchIndex()
+  return idx.folders
 }
 
 export async function fetchNoteDetail(
