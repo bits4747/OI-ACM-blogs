@@ -30,6 +30,7 @@ export const DICT = {
     // 首页
     allNotes: '全部笔记',
     publicCount: (n: number) => `共 ${n} 篇公开`,
+    folderPublicCount: (n: number) => `共 ${n} 篇`,
     filteredCount: (n: number) => ` · 筛选出 ${n} 篇`,
     expandAll: '全部展开',
     collapseAll: '全部收起',
@@ -132,6 +133,7 @@ export const DICT = {
     langEn: 'English',
     allNotes: 'All notes',
     publicCount: (n: number) => `${n} public`,
+    folderPublicCount: (n: number) => (n === 1 ? '1 note' : `${n} notes`),
     filteredCount: (n: number) => ` · ${n} matched`,
     expandAll: 'Expand all',
     collapseAll: 'Collapse all',

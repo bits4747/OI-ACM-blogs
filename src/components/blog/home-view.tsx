@@ -252,7 +252,13 @@ export function HomeView() {
         <Crumbs path={browsing ? folder : ''} />
         {notes && (
           <span className="text-xs text-muted-foreground">
-            <T k="publicCount" args={[notes.filter((n) => n.isPublic).length]} />
+            {/* 在文件夹里时给当前层的篇数，而不是全库公开数 —— 否则进「比赛」
+                还写着「共 116 篇公开」，和下面只有 19 篇的内容对不上 */}
+            {browsing && current && current.path ? (
+              <T k="folderPublicCount" args={[current.totalCount]} />
+            ) : (
+              <T k="publicCount" args={[notes.filter((n) => n.isPublic).length]} />
+            )}
             {search.trim() && <T k="filteredCount" args={[visible.length]} />}
           </span>
         )}
