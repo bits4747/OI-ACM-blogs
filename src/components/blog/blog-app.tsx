@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useSyncExternalStore } from 'react'
 import { QueryClient, QueryClientProvider, useQuery } from '@tanstack/react-query'
-import { Moon, RefreshCw, Search, Sprout, Sun, X } from 'lucide-react'
+import { Moon, RefreshCw, Search, Sun, X } from 'lucide-react'
 import { useTheme } from 'next-themes'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -140,7 +140,6 @@ function Header() {
           className="flex shrink-0 items-center gap-2 font-serif text-lg font-bold tracking-tight"
           aria-label={t.backHome}
         >
-          <Sprout className="size-5 text-primary" aria-hidden />
           {siteName}
         </button>
         <div className="relative min-w-0 flex-1 sm:max-w-[22rem]">

@@ -1,200 +1,145 @@
 /* ============================================================
-   终端 —— 等宽字体 + 荧光绿，日间是「亮色终端」，夜间是「纯黑终端」
-   适合：代码笔记、命令行记录，一眼就是「工程师的博客」
+   墨绿书斋 —— 暖纸底 + 松墨绿 + 全衬线
+   适合：笔记、题解、读书笔记这类长文阅读
    ============================================================ */
 
-/* ---------- 日间：亮色终端（浅绿纸底 + 深墨绿） ---------- */
 :root {
-  --radius: 0.25rem;
+  --radius: 0.2rem;
 
-  --background: #f4f8f4;
-  --foreground: #16281b;
+  --background: #f6f2e9;
+  --foreground: #22302a;
 
-  --card: #ffffff;
-  --card-foreground: #16281b;
-  --popover: #ffffff;
-  --popover-foreground: #16281b;
+  --card: #fffdf6;
+  --card-foreground: #22302a;
+  --popover: #fffdf6;
+  --popover-foreground: #22302a;
 
-  --primary: #15803d;
-  --primary-foreground: #f4f8f4;
+  --primary: #2f6b4f;
+  --primary-foreground: #f6f2e9;
 
-  --secondary: #e8f0e9;
-  --secondary-foreground: #16281b;
-  --muted: #ebf2ec;
-  --muted-foreground: #55705c;
-  --accent: #dff0e3;
-  --accent-foreground: #16281b;
+  --secondary: #e9e3d3;
+  --secondary-foreground: #22302a;
+  --muted: #ece6d8;
+  --muted-foreground: #6d7c71;
+  --accent: #e2ece5;
+  --accent-foreground: #22302a;
 
-  --border: #cfe0d3;
-  --input: #cfe0d3;
-  --ring: rgba(21, 128, 61, 0.45);
+  --border: #dcd3c0;
+  --input: #dcd3c0;
+  --ring: rgba(47, 107, 79, 0.45);
 
-  --code-bg: #eef5ef;
-  --code-head-bg: #e2ece4;
-  --code-head-fg: #55705c;
-  --code-fg: #16281b;
-
-  /* 终端主题专用：日间的「荧光」要压暗，否则浅底上看不清 */
-  --term-accent: #15803d;
-  --term-glow: rgba(21, 128, 61, 0.14);
-  --term-hover: rgba(21, 128, 61, 0.07);
-  --term-hover-fg: #0d3f20;
-  --term-line: rgba(21, 128, 61, 0.28);
-  --term-line-soft: rgba(21, 128, 61, 0.16);
-  --term-code-fg: #0f6b34;
+  --code-bg: #f1ecdf;
+  --code-head-bg: #e6dfcd;
+  --code-head-fg: #5d6b60;
+  --code-fg: #22302a;
 }
 
-/* ---------- 夜间：纯黑终端（黑底 + 荧光绿） ---------- */
 html.dark {
-  --background: #0c0f0c;
-  --foreground: #d8f3d8;
+  --background: #141a17;
+  --foreground: #dfe7e0;
 
-  --card: #121712;
-  --card-foreground: #d8f3d8;
-  --popover: #121712;
-  --popover-foreground: #d8f3d8;
+  --card: #1b2320;
+  --card-foreground: #dfe7e0;
+  --popover: #1b2320;
+  --popover-foreground: #dfe7e0;
 
-  --primary: #4ade80;
-  --primary-foreground: #07120a;
+  --primary: #6fc394;
+  --primary-foreground: #10201a;
 
-  --secondary: #1a211a;
-  --secondary-foreground: #d8f3d8;
-  --muted: #1a211a;
-  --muted-foreground: #7f9a7f;
-  --accent: #1e2a1e;
-  --accent-foreground: #e6ffe6;
+  --secondary: #232d28;
+  --secondary-foreground: #dfe7e0;
+  --muted: #232d28;
+  --muted-foreground: #93a79a;
+  --accent: #26332c;
+  --accent-foreground: #e6eee8;
 
-  --border: rgba(120, 200, 140, 0.18);
-  --input: rgba(120, 200, 140, 0.24);
-  --ring: rgba(74, 222, 128, 0.6);
+  --border: rgba(160, 190, 170, 0.2);
+  --input: rgba(160, 190, 170, 0.26);
+  --ring: rgba(111, 195, 148, 0.6);
 
-  --code-bg: #0a0d0a;
-  --code-head-bg: #141a14;
-  --code-head-fg: #7f9a7f;
-  --code-fg: #d8f3d8;
-
-  --term-accent: #4ade80;
-  --term-glow: rgba(74, 222, 128, 0.07);
-  --term-hover: rgba(74, 222, 128, 0.07);
-  --term-hover-fg: #e9ffe9;
-  --term-line: rgba(74, 222, 128, 0.28);
-  --term-line-soft: rgba(74, 222, 128, 0.16);
-  --term-code-fg: #86efac;
+  --code-bg: #1a221e;
+  --code-head-bg: #232d28;
+  --code-head-fg: #9db3a4;
+  --code-fg: #dfe7e0;
 }
 
-/* 全等宽字体，字距略松 */
+/* 正文全用衬线，标题更重一些，读起来像一本书 */
 body,
-.markdown-body,
-[data-region='header'] button,
-.font-serif {
-  font-family: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', ui-monospace,
-    SFMono-Regular, Menlo, Consolas, 'Microsoft YaHei', monospace;
-}
 .markdown-body {
-  letter-spacing: 0.02em;
-  line-height: 1.85;
+  font-family: 'Songti SC', 'STSong', 'Noto Serif SC', 'Source Han Serif SC',
+    'SimSun', Georgia, 'Times New Roman', serif;
 }
 
-/* 站名前加一个终端提示符 */
-[data-region='header'] button:first-child::before {
-  content: '> ';
-  color: var(--term-accent);
-  opacity: 0.9;
+.markdown-body {
+  line-height: 1.95;
+  letter-spacing: 0.01em;
 }
 
-/* 顶栏：一条细绿线 + 微弱的辉光（日间是浅绿晕，夜间是荧光晕） */
-header.sticky {
-  background: var(--background);
-  backdrop-filter: none;
-  border-bottom: 1px solid var(--term-line);
-  box-shadow: 0 0 24px var(--term-glow);
-}
-
-/* 卡片：方角 + 绿色细边，悬停时边框发亮 */
-[data-region='folders'] a,
-[data-region='folders'] > * {
-  border-radius: 0.25rem;
-  border: 1px solid var(--term-line-soft);
-  background: var(--card);
-  transition: border-color 0.16s ease, box-shadow 0.16s ease;
-}
-[data-region='folders'] a:hover,
-[data-region='folders'] > *:hover {
-  border-color: var(--term-line);
-  box-shadow: 0 0 0 1px var(--term-line-soft), 0 0 22px var(--term-glow);
-}
-
-/* 列表行：悬停时左侧出现一个方块光标 */
-[data-region='main'] li {
-  position: relative;
-  transition: background 0.14s ease, color 0.14s ease;
-}
-[data-region='main'] li:hover {
-  background: var(--term-hover);
-  color: var(--term-hover-fg);
-}
-[data-region='main'] li:hover::before {
-  content: '';
-  position: absolute;
-  left: 0.2rem;
-  top: 50%;
-  width: 0.32rem;
-  height: 0.32rem;
-  transform: translateY(-50%);
-  background: var(--term-accent);
-}
-
-/* 标题：主色 + 全等宽 */
 .markdown-body h1,
 .markdown-body h2,
 .markdown-body h3 {
-  color: var(--term-accent);
-  font-family: inherit;
-  letter-spacing: 0;
+  letter-spacing: 0.02em;
 }
+
+/* 段落首行缩进两字，中文长文的传统排版 */
+.markdown-body p {
+  text-indent: 2em;
+  margin: 0.75em 0;
+}
+.markdown-body li p,
+.markdown-body blockquote p,
+.markdown-body td p,
+.markdown-body .callout p {
+  text-indent: 0;
+}
+
+/* 二级标题做成「小节」的样子：左侧一道竖线，不要下划线 */
 .markdown-body h2 {
-  border-bottom: 1px dashed var(--term-line);
+  border-bottom: none;
+  border-left: 3px solid var(--primary);
+  padding-left: 0.6em;
+  margin-top: 2.2em;
 }
 
-/* 链接：绿色 + 虚线底 */
-.markdown-body a.internal-link {
-  color: var(--term-accent);
-  border-bottom: 1px dashed var(--term-line);
-}
-.markdown-body a.internal-link:hover {
-  background: var(--term-hover);
-}
-
-/* 行内代码：绿字 + 终端底色 */
-.markdown-body code.inline-code {
-  background: var(--code-bg);
-  border: 1px solid var(--term-line);
-  color: var(--term-code-fg);
-}
-
-/* 引用块：左绿线 + 极淡绿底 */
+/* 引用块换成竖排气息更浓的浅色块 */
 .markdown-body blockquote {
-  border-left: 2px solid var(--term-line);
-  background: var(--term-hover);
-  color: var(--muted-foreground);
+  border-left: 3px solid var(--primary);
+  background: color-mix(in srgb, var(--primary) 6%, transparent);
+  font-style: normal;
 }
 
-/* 表格：绿色网格 */
-.markdown-body th {
-  background: var(--term-hover);
-  color: var(--term-accent);
-}
-.markdown-body tbody tr:nth-child(even) {
-  background: var(--term-hover);
+/* 顶栏：去掉毛玻璃，改成一条纸边 */
+header.sticky {
+  background: var(--background);
+  backdrop-filter: none;
+  border-bottom: 1px solid var(--border);
 }
 
-/* 页脚：像一行 shell 输出 */
+/* 首页卡片：细边框 + 极轻的纸阴影 */
+[data-region='folders'] a,
+[data-region='folders'] > * {
+  box-shadow: 0 1px 0 var(--border);
+  transition: box-shadow 0.18s ease, transform 0.18s ease;
+}
+[data-region='folders'] a:hover,
+[data-region='folders'] > *:hover {
+  box-shadow: 0 3px 14px rgba(47, 107, 79, 0.12);
+  transform: translateY(-1px);
+}
+
+/* 笔记列表：行悬停时左侧浮出一条绿线 */
+[data-region='main'] li:hover {
+  background: color-mix(in srgb, var(--primary) 5%, transparent);
+}
+
+/* 阅读区收窄一点，一行 34 字左右最舒服 */
+[data-region='note'] {
+  max-width: 46rem;
+}
+
+/* 页脚低调 */
 [data-region='footer'] {
-  border-top: 1px dashed var(--term-line-soft);
-  opacity: 0.8;
-}
-[data-region='footer'] > *::before {
-  content: '# ';
-  color: var(--term-accent);
-  opacity: 0.7;
+  opacity: 0.75;
+  font-size: 0.72rem;
+  letter-spacing: 0.05em;
 }
