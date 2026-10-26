@@ -1,0 +1,230 @@
+/* ============================================================
+   墨绿书斋 —— 书页双栏：左边目录，右边正文
+   暖纸底 + 松墨绿 + 全衬线 + 段落首行缩进两字
+   ============================================================ */
+
+:root {
+  --radius: 0.2rem;
+
+  --background: #f6f2e9;
+  --foreground: #22302a;
+
+  --card: #fffdf6;
+  --card-foreground: #22302a;
+  --popover: #fffdf6;
+  --popover-foreground: #22302a;
+
+  --primary: #2f6b4f;
+  --primary-foreground: #f6f2e9;
+
+  --secondary: #e9e3d3;
+  --secondary-foreground: #22302a;
+  --muted: #ece6d8;
+  --muted-foreground: #6d7c71;
+  --accent: #e2ece5;
+  --accent-foreground: #22302a;
+
+  --border: #dcd3c0;
+  --input: #dcd3c0;
+  --ring: rgba(47, 107, 79, 0.45);
+
+  --code-bg: #f1ecdf;
+  --code-head-bg: #e6dfcd;
+  --code-head-fg: #5d6b60;
+  --code-fg: #22302a;
+}
+
+html.dark {
+  --background: #141a17;
+  --foreground: #dfe7e0;
+
+  --card: #1b2320;
+  --card-foreground: #dfe7e0;
+  --popover: #1b2320;
+  --popover-foreground: #dfe7e0;
+
+  --primary: #6fc394;
+  --primary-foreground: #10201a;
+
+  --secondary: #232d28;
+  --secondary-foreground: #dfe7e0;
+  --muted: #232d28;
+  --muted-foreground: #93a79a;
+  --accent: #26332c;
+  --accent-foreground: #e6eee8;
+
+  --border: rgba(160, 190, 170, 0.2);
+  --input: rgba(160, 190, 170, 0.26);
+  --ring: rgba(111, 195, 148, 0.6);
+
+  --code-bg: #1a221e;
+  --code-head-bg: #232d28;
+  --code-head-fg: #9db3a4;
+  --code-fg: #dfe7e0;
+}
+
+/* 正文全用衬线，标题更重一些，读起来像一本书 */
+body,
+.markdown-body {
+  font-family: 'Songti SC', 'STSong', 'Noto Serif SC', 'Source Han Serif SC',
+    'SimSun', Georgia, 'Times New Roman', serif;
+}
+
+.markdown-body {
+  line-height: 1.95;
+  letter-spacing: 0.01em;
+}
+
+.markdown-body h1,
+.markdown-body h2,
+.markdown-body h3 {
+  letter-spacing: 0.02em;
+}
+
+/* 段落首行缩进两字，中文长文的传统排版 */
+.markdown-body p {
+  text-indent: 2em;
+  margin: 0.75em 0;
+}
+.markdown-body li p,
+.markdown-body blockquote p,
+.markdown-body td p,
+.markdown-body .callout p {
+  text-indent: 0;
+}
+
+/* 二级标题做成「小节」的样子：左侧一道竖线，不要下划线 */
+.markdown-body h2 {
+  border-bottom: none;
+  border-left: 3px solid var(--primary);
+  padding-left: 0.6em;
+  margin-top: 2.2em;
+}
+
+/* 引用块：竖线 + 极浅底色 */
+.markdown-body blockquote {
+  border-left: 3px solid var(--primary);
+  background: color-mix(in srgb, var(--primary) 6%, transparent);
+  font-style: normal;
+}
+
+/* 顶栏：去掉毛玻璃，改成一条纸边 */
+header.sticky {
+  background: var(--background);
+  backdrop-filter: none;
+  border-bottom: 1px solid var(--border);
+}
+
+/* ============================================================
+   版面：文章页 = 左侧粘性目录 + 右侧正文（两栏）
+   这是本主题和其它主题最大的区别 —— 目录不再是浮在正文上的小窗，
+   而是像纸书的书脊，固定在左边。
+   ============================================================ */
+
+/* 整体容器放宽到 86rem，正文才能摆得开 */
+[data-region='main'] {
+  max-width: 86rem;
+}
+
+[data-region='note'] {
+  max-width: 86rem;
+  display: grid;
+  grid-template-columns: 15rem minmax(0, 1fr);
+  grid-template-areas: 'toc article';
+  column-gap: 4.5rem;
+  align-items: start;
+}
+
+[data-region='article'] {
+  grid-area: article;
+  max-width: 60rem;
+  min-width: 0;
+}
+
+/* 目录面板：从「悬浮小窗」改成「左栏书脊」 */
+[data-region='toc-panel'] {
+  grid-area: toc;
+  position: sticky !important;
+  top: 5.5rem !important;
+  left: auto !important;
+  right: auto !important;
+  width: 100% !important;
+  max-width: none !important;
+  max-height: calc(100vh - 8rem);
+  background: transparent !important;
+  border: none !important;
+  border-left: 2px solid var(--border);
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  backdrop-filter: none !important;
+  padding-left: 1rem;
+}
+
+/* 书脊不需要拖动/缩放：那是「浮窗」才有的交互 */
+[data-region='toc-panel'] > div:nth-child(n + 2) {
+  display: none !important;
+}
+
+/* 目录标题栏：去掉拖动条外观，改成小字栏目名 */
+[data-region='toc-panel'] > div:first-child {
+  border-bottom: none !important;
+  padding-left: 0 !important;
+  padding-right: 0 !important;
+  cursor: default;
+}
+[data-region='toc-panel'] > div:first-child > div {
+  display: none; /* 拖动手柄 */
+}
+[data-region='toc-panel'] nav {
+  margin: 0 !important;
+  padding-left: 0 !important;
+  border-left: none !important;
+  max-height: calc(100vh - 12rem) !important;
+}
+
+/* 首页卡片：细边框 + 极轻的纸阴影 */
+[data-region='folders'] a,
+[data-region='folders'] > * {
+  box-shadow: 0 1px 0 var(--border);
+  transition: box-shadow 0.18s ease, transform 0.18s ease;
+}
+[data-region='folders'] a:hover,
+[data-region='folders'] > *:hover {
+  box-shadow: 0 3px 14px rgba(47, 107, 79, 0.12);
+  transform: translateY(-1px);
+}
+
+/* 笔记列表：行悬停时极浅的绿 */
+[data-region='main'] li:hover {
+  background: color-mix(in srgb, var(--primary) 5%, transparent);
+}
+
+/* 页脚低调 */
+[data-region='footer'] {
+  opacity: 0.75;
+  font-size: 0.72rem;
+  letter-spacing: 0.05em;
+}
+
+/* 窄屏退回单栏：目录回到正文上方（不再遮挡内容） */
+@media (max-width: 1023px) {
+  [data-region='note'] {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas: 'toc' 'article';
+    row-gap: 2rem;
+  }
+  [data-region='toc-panel'] {
+    position: static !important;
+    max-height: none;
+    border-left: none;
+    border-top: 1px solid var(--border);
+    padding-left: 0;
+    padding-top: 0.75rem;
+  }
+  [data-region='toc-panel'] nav {
+    max-height: 12rem !important;
+  }
+  [data-region='article'] {
+    max-width: none;
+  }
+}
