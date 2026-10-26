@@ -1,178 +1,200 @@
 /* ============================================================
-   极简黑白 —— 纯白 / 纯黑，无彩色，只靠字重与留白
-   适合：不想被颜色干扰，专心写作与阅读
+   终端 —— 等宽字体 + 荧光绿，日间是「亮色终端」，夜间是「纯黑终端」
+   适合：代码笔记、命令行记录，一眼就是「工程师的博客」
    ============================================================ */
 
+/* ---------- 日间：亮色终端（浅绿纸底 + 深墨绿） ---------- */
 :root {
-  --radius: 0;
+  --radius: 0.25rem;
 
-  --background: #ffffff;
-  --foreground: #111111;
+  --background: #f4f8f4;
+  --foreground: #16281b;
 
   --card: #ffffff;
-  --card-foreground: #111111;
+  --card-foreground: #16281b;
   --popover: #ffffff;
-  --popover-foreground: #111111;
+  --popover-foreground: #16281b;
 
-  --primary: #111111;
-  --primary-foreground: #ffffff;
+  --primary: #15803d;
+  --primary-foreground: #f4f8f4;
 
-  --secondary: #f4f4f4;
-  --secondary-foreground: #111111;
-  --muted: #f6f6f6;
-  --muted-foreground: #6b6b6b;
-  --accent: #eeeeee;
-  --accent-foreground: #111111;
+  --secondary: #e8f0e9;
+  --secondary-foreground: #16281b;
+  --muted: #ebf2ec;
+  --muted-foreground: #55705c;
+  --accent: #dff0e3;
+  --accent-foreground: #16281b;
 
-  --border: #e2e2e2;
-  --input: #e2e2e2;
-  --ring: rgba(17, 17, 17, 0.35);
+  --border: #cfe0d3;
+  --input: #cfe0d3;
+  --ring: rgba(21, 128, 61, 0.45);
 
-  --code-bg: #f7f7f7;
-  --code-head-bg: #efefef;
-  --code-head-fg: #6b6b6b;
-  --code-fg: #111111;
+  --code-bg: #eef5ef;
+  --code-head-bg: #e2ece4;
+  --code-head-fg: #55705c;
+  --code-fg: #16281b;
+
+  /* 终端主题专用：日间的「荧光」要压暗，否则浅底上看不清 */
+  --term-accent: #15803d;
+  --term-glow: rgba(21, 128, 61, 0.14);
+  --term-hover: rgba(21, 128, 61, 0.07);
+  --term-hover-fg: #0d3f20;
+  --term-line: rgba(21, 128, 61, 0.28);
+  --term-line-soft: rgba(21, 128, 61, 0.16);
+  --term-code-fg: #0f6b34;
 }
 
+/* ---------- 夜间：纯黑终端（黑底 + 荧光绿） ---------- */
 html.dark {
-  --background: #0d0d0d;
-  --foreground: #ededed;
+  --background: #0c0f0c;
+  --foreground: #d8f3d8;
 
-  --card: #141414;
-  --card-foreground: #ededed;
-  --popover: #141414;
-  --popover-foreground: #ededed;
+  --card: #121712;
+  --card-foreground: #d8f3d8;
+  --popover: #121712;
+  --popover-foreground: #d8f3d8;
 
-  --primary: #ededed;
-  --primary-foreground: #0d0d0d;
+  --primary: #4ade80;
+  --primary-foreground: #07120a;
 
-  --secondary: #1c1c1c;
-  --secondary-foreground: #ededed;
-  --muted: #1c1c1c;
-  --muted-foreground: #9a9a9a;
-  --accent: #222222;
-  --accent-foreground: #f5f5f5;
+  --secondary: #1a211a;
+  --secondary-foreground: #d8f3d8;
+  --muted: #1a211a;
+  --muted-foreground: #7f9a7f;
+  --accent: #1e2a1e;
+  --accent-foreground: #e6ffe6;
 
-  --border: #2a2a2a;
-  --input: #2a2a2a;
-  --ring: rgba(237, 237, 237, 0.4);
+  --border: rgba(120, 200, 140, 0.18);
+  --input: rgba(120, 200, 140, 0.24);
+  --ring: rgba(74, 222, 128, 0.6);
 
-  --code-bg: #101010;
-  --code-head-bg: #1a1a1a;
-  --code-head-fg: #9a9a9a;
-  --code-fg: #ededed;
+  --code-bg: #0a0d0a;
+  --code-head-bg: #141a14;
+  --code-head-fg: #7f9a7f;
+  --code-fg: #d8f3d8;
+
+  --term-accent: #4ade80;
+  --term-glow: rgba(74, 222, 128, 0.07);
+  --term-hover: rgba(74, 222, 128, 0.07);
+  --term-hover-fg: #e9ffe9;
+  --term-line: rgba(74, 222, 128, 0.28);
+  --term-line-soft: rgba(74, 222, 128, 0.16);
+  --term-code-fg: #86efac;
 }
 
-/* 顶栏：纯白/纯黑，一条 1px 实线 */
+/* 全等宽字体，字距略松 */
+body,
+.markdown-body,
+[data-region='header'] button,
+.font-serif {
+  font-family: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', ui-monospace,
+    SFMono-Regular, Menlo, Consolas, 'Microsoft YaHei', monospace;
+}
+.markdown-body {
+  letter-spacing: 0.02em;
+  line-height: 1.85;
+}
+
+/* 站名前加一个终端提示符 */
+[data-region='header'] button:first-child::before {
+  content: '> ';
+  color: var(--term-accent);
+  opacity: 0.9;
+}
+
+/* 顶栏：一条细绿线 + 微弱的辉光（日间是浅绿晕，夜间是荧光晕） */
 header.sticky {
   background: var(--background);
   backdrop-filter: none;
-  border-bottom: 1px solid var(--border);
+  border-bottom: 1px solid var(--term-line);
+  box-shadow: 0 0 24px var(--term-glow);
 }
 
-/* 站名全大写 + 宽字距，杂志封面感 */
-[data-region='header'] button:first-child {
-  text-transform: uppercase;
-  letter-spacing: 0.14em;
-  font-size: 0.82rem;
-  font-weight: 700;
-}
-
-/* 卡片：方角 + 1px 线，悬停只变线色 */
+/* 卡片：方角 + 绿色细边，悬停时边框发亮 */
 [data-region='folders'] a,
 [data-region='folders'] > * {
-  border-radius: 0;
-  border: 1px solid var(--border);
-  background: transparent;
-  transition: border-color 0.15s ease;
+  border-radius: 0.25rem;
+  border: 1px solid var(--term-line-soft);
+  background: var(--card);
+  transition: border-color 0.16s ease, box-shadow 0.16s ease;
 }
 [data-region='folders'] a:hover,
 [data-region='folders'] > *:hover {
-  border-color: var(--foreground);
+  border-color: var(--term-line);
+  box-shadow: 0 0 0 1px var(--term-line-soft), 0 0 22px var(--term-glow);
 }
 
-/* 列表容器：去掉圆角与外阴影 */
-[data-region='main'] section {
-  border-radius: 0;
-  border: 1px solid var(--border);
-  box-shadow: none;
-  background: transparent;
+/* 列表行：悬停时左侧出现一个方块光标 */
+[data-region='main'] li {
+  position: relative;
+  transition: background 0.14s ease, color 0.14s ease;
 }
-
-/* 列表行：悬停只用极浅灰，不加色 */
 [data-region='main'] li:hover {
-  background: var(--muted);
-  border-radius: 0;
+  background: var(--term-hover);
+  color: var(--term-hover-fg);
+}
+[data-region='main'] li:hover::before {
+  content: '';
+  position: absolute;
+  left: 0.2rem;
+  top: 50%;
+  width: 0.32rem;
+  height: 0.32rem;
+  transform: translateY(-50%);
+  background: var(--term-accent);
 }
 
-/* 正文：无衬线，行距略大 */
-.markdown-body {
-  line-height: 1.9;
-}
-
-/* 标题：无衬线 + 紧字距，二级标题只留细线 */
+/* 标题：主色 + 全等宽 */
 .markdown-body h1,
 .markdown-body h2,
 .markdown-body h3 {
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC',
-    'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
-  letter-spacing: -0.01em;
+  color: var(--term-accent);
+  font-family: inherit;
+  letter-spacing: 0;
 }
 .markdown-body h2 {
-  border-bottom: 1px solid var(--border);
-  padding-bottom: 0.35em;
+  border-bottom: 1px dashed var(--term-line);
 }
 
-/* 链接：只用下划线区分，不用颜色 */
+/* 链接：绿色 + 虚线底 */
 .markdown-body a.internal-link {
-  color: inherit;
-  border-bottom: 1px solid var(--foreground);
-  text-decoration: none;
+  color: var(--term-accent);
+  border-bottom: 1px dashed var(--term-line);
 }
 .markdown-body a.internal-link:hover {
-  background: var(--muted);
-}
-.markdown-body a.external-link {
-  color: inherit;
-  text-decoration: underline;
-  text-underline-offset: 0.2em;
+  background: var(--term-hover);
 }
 
-/* 引用块：左侧粗黑线，无底色 */
-.markdown-body blockquote {
-  border-left: 3px solid var(--foreground);
-  background: transparent;
-  border-radius: 0;
-  color: var(--muted-foreground);
-  font-style: italic;
-}
-
-/* 行内代码：方角描边 */
+/* 行内代码：绿字 + 终端底色 */
 .markdown-body code.inline-code {
-  border-radius: 0;
   background: var(--code-bg);
-  border: 1px solid var(--border);
+  border: 1px solid var(--term-line);
+  color: var(--term-code-fg);
 }
 
-/* 代码块：无圆角 */
-.markdown-body .code-block {
-  border-radius: 0;
+/* 引用块：左绿线 + 极淡绿底 */
+.markdown-body blockquote {
+  border-left: 2px solid var(--term-line);
+  background: var(--term-hover);
+  color: var(--muted-foreground);
 }
 
-/* 标签胶囊：方角 */
-[data-region='main'] button[class*='rounded-full'] {
-  border-radius: 0;
+/* 表格：绿色网格 */
+.markdown-body th {
+  background: var(--term-hover);
+  color: var(--term-accent);
+}
+.markdown-body tbody tr:nth-child(even) {
+  background: var(--term-hover);
 }
 
-/* 阅读区收窄，左右大量留白 */
-[data-region='note'] {
-  max-width: 40rem;
-}
-
-/* 页脚：居中 + 大写字距 */
+/* 页脚：像一行 shell 输出 */
 [data-region='footer'] {
-  justify-content: center;
-  text-transform: uppercase;
-  letter-spacing: 0.12em;
-  opacity: 0.55;
+  border-top: 1px dashed var(--term-line-soft);
+  opacity: 0.8;
+}
+[data-region='footer'] > *::before {
+  content: '# ';
+  color: var(--term-accent);
+  opacity: 0.7;
 }
