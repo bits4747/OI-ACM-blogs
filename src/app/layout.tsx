@@ -25,6 +25,15 @@ export const metadata: Metadata = {
  */
 const LANG_BOOT = `(function(){try{var d=${JSON.stringify(DEFAULT_LANG)};var l=d;var s=localStorage.getItem(${JSON.stringify(LANG_STORAGE_KEY)});if(s){var p=JSON.parse(s);if(p&&p.state&&p.state.picked&&(p.state.lang==='zh'||p.state.lang==='en'))l=p.state.lang;}var h=document.documentElement;h.dataset.lang=l;h.lang=(l==='en'?'en':'zh-CN');}catch(e){try{document.documentElement.dataset.lang=${JSON.stringify(DEFAULT_LANG)};}catch(_){}}})()`
 
+/**
+ * 预绘制脚本：首帧前把已保存的阅读字号（--site-fs）写到 <html>。
+ *
+ * 和 LANG_BOOT 同理 —— 字号存在 localStorage，等 React 水合再应用的话，
+ * 用户每次打开都会先看到默认字号再「跳」一下。这里在 <head> 里同步设好，
+ * 第一帧就是用户上次选的倍率。读取失败一律回落到 1（默认）。
+ */
+const FONT_BOOT = `(function(){try{var v=Number(localStorage.getItem('font-scale'));if(!(v>=0.8&&v<=1.6))v=1;document.documentElement.style.setProperty('--site-fs',String(Math.round(v*100)/100));}catch(e){}})()`
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -34,6 +43,7 @@ export default function RootLayout({
     <html lang={DEFAULT_LANG === 'en' ? 'en' : 'zh-CN'} data-lang={DEFAULT_LANG} suppressHydrationWarning>
       <head>
         <script dangerouslySetInnerHTML={{ __html: LANG_BOOT }} />
+        <script dangerouslySetInnerHTML={{ __html: FONT_BOOT }} />
         {/*
           库主人自己粘贴的外观 CSS（发布管理器「外观」面板里保存）。
           文件是 public/theme.css，随仓库提交，由 Next 的 output:'export' 拷进 out/。

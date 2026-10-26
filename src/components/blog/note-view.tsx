@@ -213,25 +213,6 @@ export function NoteView({ slug }: { slug: string }) {
   const t = useT()
   // 静态站是纯只读的：没有管理视图，frontmatter / 原文 Tab 一律不可用
   const isAdmin = false
-  // 直接在初始化器里读取已保存的字号：effect 恢复会在 StrictMode 双挂载下
-  // 与持久化 effect 竞争（先被默认值覆写再读取），导致设置丢失。
-  // 本组件正文/控件只在客户端渲染（服务端走骨架屏分支），无水合不一致问题。
-  const [fontScale, setFontScale] = useState<number>(() => {
-    if (typeof window === 'undefined') return 1
-    try {
-      const v = Number(localStorage.getItem((FONT_SCALE_KEY)))
-      return v >= 0.8 && v <= 1.6 ? v : 1
-    } catch {
-      return 1
-    }
-  })
-  useEffect(() => {
-    try {
-      localStorage.setItem((FONT_SCALE_KEY), String(fontScale))
-    } catch {
-      /* 忽略 */
-    }
-  }, [fontScale])
 
   const { data, isLoading, isError, isFetching } = useQuery({
     queryKey: ['note', slug, isAdmin],
@@ -379,7 +360,7 @@ export function NoteView({ slug }: { slug: string }) {
 
   return (
     <div className="mx-auto w-full max-w-[63.4rem]" data-region="note">
-      <article className="mx-auto w-full" style={{ '--note-fs': fontScale } as CSSProperties} data-region="article">
+      <article className="mx-auto w-full" data-region="article">
       <nav className="mb-4 flex items-center gap-2 text-sm text-muted-foreground" aria-label={t.back}>
         <button
           type="button"
@@ -462,37 +443,9 @@ export function NoteView({ slug }: { slug: string }) {
       </footer>
       </article>
       {headings.length > 1 && <NoteToc headings={headings} />}
-      <div className="fixed bottom-5 right-5 z-40 flex items-center gap-2 rounded-full border border-border bg-background/95 py-1.5 pl-2.5 pr-3 shadow-lg backdrop-blur">
-        <button
-          type="button"
-          className="rounded-full px-1.5 py-0.5 text-xs font-semibold text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-          onClick={() => setFontScale((s) => Math.max(0.8, Math.round((s - 0.05) * 100) / 100))}
-          aria-label={t.fontSmaller}
-        >
-          A−
-        </button>
-        <input
-          type="range"
-          min={0.8}
-          max={1.6}
-          step={0.01}
-          value={fontScale}
-          onChange={(e) => setFontScale(Number(e.target.value))}
-          className="w-28 accent-[var(--primary)]"
-          aria-label={t.fontReset}
-        />
-        <span className="min-w-11 text-center text-xs tabular-nums text-muted-foreground">
-          {Math.round(fontScale * 100)}%
-        </span>
-        <button
-          type="button"
-          className="rounded-full px-1.5 py-0.5 text-sm font-semibold text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-          onClick={() => setFontScale((s) => Math.min(1.6, Math.round((s + 0.05) * 100) / 100))}
-          aria-label={t.fontLarger}
-        >
-          A+
-        </button>
-      </div>
+      {/* 字号控件已移到应用根节点（components/blog/font-control.tsx）：
+          之前它只在这里，导致首页根本没有入口；而且只缩放正文。
+          现在它挂在根上，首页和文章页都有，且全站生效。 */}
     </div>
   )
 }
@@ -500,7 +453,6 @@ export function NoteView({ slug }: { slug: string }) {
 const TOC_POS_KEY = 'toc-pos'
 const TOC_COLLAPSED_KEY = 'toc-collapsed'
 const TOC_SIZE_KEY = 'toc-size'
-const FONT_SCALE_KEY = 'font-scale'
 const TOC_W_MIN = 180
 const TOC_W_MAX = 520
 const TOC_H_MIN = 140

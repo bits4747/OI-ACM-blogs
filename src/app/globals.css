@@ -125,6 +125,15 @@
 
 /* ===== 数字花园 · Obsidian 博客自定义样式 ===== */
 
+/* ---------- 阅读字号：全站缩放 ----------
+   --site-fs 由右下角字号控件写入 <html>（见 src/lib/font-scale.ts）。
+   根字号一变，全站所有 rem 单位（Tailwind 的 text-*、p-*、gap-* 都是 rem）
+   跟着一起缩放 —— 顶栏、首页卡片、大纲浮层、页脚与正文同步，不再只有正文能调。
+   用百分比而不是 px：用户浏览器的默认字号设置仍然生效（无障碍）。 */
+html {
+  font-size: calc(100% * var(--site-fs, 1));
+}
+
 /* 中文字体栈 */
 body,
 .markdown-body {
@@ -157,11 +166,12 @@ h1, h2, h3, .markdown-body h1, .markdown-body h2, .markdown-body h3,
 }
 
 /* ---------- Markdown 正文排版 ---------- */
-/* --note-fs 由阅读字体调节控件设置（0.8~1.6），标题/正文字号全部随它缩放 */
+/* 字号统一由根节点的 --site-fs 缩放（见上方），正文只需用 1rem 跟随根字号，
+   不再单独乘一个 --note-fs —— 否则会和全站缩放叠加，正文被放大两次。 */
 .markdown-body {
   line-height: 1.8;
   word-break: break-word;
-  font-size: calc(1rem * var(--note-fs, 1));
+  font-size: 1rem;
 }
 .markdown-body > *:first-child { margin-top: 0; }
 .markdown-body h1, .markdown-body h2, .markdown-body h3, .markdown-body h4,

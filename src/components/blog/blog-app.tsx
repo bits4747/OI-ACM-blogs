@@ -10,6 +10,7 @@ import { fetchSiteInfo } from '@/lib/api'
 import { useBlog } from '@/lib/store'
 import { HomeView } from '@/components/blog/home-view'
 import { NoteView } from '@/components/blog/note-view'
+import { FontControl } from '@/components/blog/font-control'
 import { useLang, useT } from '@/lib/i18n'
 import { T } from '@/components/blog/t-text'
 
@@ -284,6 +285,8 @@ export function BlogApp() {
       >
         <Header />
         <Views />
+        {/* 字号控件挂在根上：首页与文章页都能调，且全站生效 */}
+        <FontControl />
         <footer className="mt-auto border-t bg-muted/30">
           <div className="mx-auto flex max-w-[68rem] flex-wrap items-center justify-between gap-2 px-4 py-4 text-xs text-muted-foreground sm:px-6" data-region="footer">
             <FooterLine />
