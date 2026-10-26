@@ -709,7 +709,54 @@ await fs.writeFile(
   ].join('\n')
 )
 
+/**
+ * 用户自定义外观（public/theme.css）→ src/lib/theme.generated.ts
+ *
+ * theme.css 是「库主人自己在管理器里粘贴的 CSS」，属于内容而不是源码：
+ * 它放在 public/ 下，随仓库提交，Next 的 output:'export' 会把它原样拷进 out/。
+ *
+ * 这里只做两件事：
+ *   ① 记录它到底存不存在 —— 不存在时 layout 就不输出 <link>，免得每次访问都留一个 404；
+ *   ② 算一个内容哈希 —— 文件名叫 theme.css 不变，而 GitHub Pages 对静态资源有
+ *      max-age=600，不换 URL 的话用户改完 CSS 要等十分钟才生效（会以为没保存上）。
+ *      做法与 /data/*.json 的 ?v=RELEASE_TAG 一致。
+ *
+ * 注意：本函数必须在 CI 与本地都能工作。CI 上 public/theme.css 来自仓库，
+ * 本地源码目录里通常没有（它在工作副本 repos/<id>/ 里），此时按「无自定义外观」处理。
+ */
+function resolveThemeCss() {
+  const file = path.join(PUBLIC, 'theme.css')
+  try {
+    const raw = fsSync.readFileSync(file, 'utf8')
+    // 全是空白/注释等于没写：不要为了一个空文件去改 URL，也不要输出空的 <link>
+    const effective = raw.replace(/\/\*[\s\S]*?\*\//g, '').trim()
+    if (!effective) return { exists: false, version: '', bytes: 0 }
+    const version = createHash('sha256').update(raw).digest('hex').slice(0, 10)
+    return { exists: true, version, bytes: Buffer.byteLength(raw, 'utf8') }
+  } catch {
+    return { exists: false, version: '', bytes: 0 }
+  }
+}
+
+const themeCss = resolveThemeCss()
+await fs.writeFile(
+  path.join(generatedDir, 'theme.generated.ts'),
+  [
+    '// 本文件由 scripts/build-content.mjs 自动生成，请勿手改。',
+    '// 值来自仓库里的 public/theme.css（库主人在发布管理器的「外观」里保存的自定义 CSS）。',
+    '// 想改外观请用发布管理器，不要手改这个文件。',
+    `export const THEME_EXISTS = ${themeCss.exists}`,
+    `export const THEME_VERSION = ${JSON.stringify(themeCss.version)}`,
+    '',
+  ].join('\n')
+)
+
 console.log(`[build-content] 笔记 ${indexNotes.length} 篇，附件 ${linkIndexAssets.length} 个 → public/data/ + public/assets/`)
+console.log(
+  themeCss.exists
+    ? `[build-content] 自定义外观 public/theme.css 已启用（${themeCss.bytes} 字节，v=${themeCss.version}）`
+    : '[build-content] 未使用自定义外观（public/theme.css 不存在或为空）'
+)
 console.log(`[build-content] 站名「${siteName.name}」（来源：${siteName.from}）`)
 console.log(`[build-content] 发布标记 releaseTag=${releaseTag}`)
 
@@ -782,6 +829,15 @@ async function finalize() {
       '// 本文件由 scripts/build-content.mjs 自动生成，请勿手改。',
       '// 构建时会写入用户数据目录里的站名；此处为中性占位值。',
       'export const SITE_NAME = "笔记"',
+      '',
+    ].join('\n'),
+    // 外观标记同样要还原成占位值：源码目录里看不出这个库有没有自定义皮肤。
+    // 占位值是「无自定义外观」，下次构建会按真实的 public/theme.css 重新算。
+    'theme.generated.ts': [
+      '// 本文件由 scripts/build-content.mjs 自动生成，请勿手改。',
+      '// 构建时会写入 public/theme.css 的存在性与内容哈希；此处为占位值。',
+      'export const THEME_EXISTS = false',
+      "export const THEME_VERSION = ''",
       '',
     ].join('\n'),
   }

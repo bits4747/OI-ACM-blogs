@@ -3,7 +3,8 @@ import 'katex/dist/katex.min.css'
 import './globals.css'
 import { Toaster } from '@/components/ui/sonner'
 import { ThemeProvider } from 'next-themes'
-import { SITE_NAME } from '@/lib/site'
+import { SITE_NAME, withBase } from '@/lib/site'
+import { THEME_EXISTS, THEME_VERSION } from '@/lib/theme.generated'
 import { DEFAULT_LANG, LANG_STORAGE_KEY } from '@/lib/lang'
 
 // 站名 = 发布管理器里给这个库起的「名字」，原样显示，不自动补「的博客」——
@@ -33,6 +34,25 @@ export default function RootLayout({
     <html lang={DEFAULT_LANG === 'en' ? 'en' : 'zh-CN'} data-lang={DEFAULT_LANG} suppressHydrationWarning>
       <head>
         <script dangerouslySetInnerHTML={{ __html: LANG_BOOT }} />
+        {/*
+          库主人自己粘贴的外观 CSS（发布管理器「外观」面板里保存）。
+          文件是 public/theme.css，随仓库提交，由 Next 的 output:'export' 拷进 out/。
+
+          为什么是外链 <link> 而不是把内容内联进 <style>：
+            外链的 CSS 由浏览器按 CSS 解析，永远不会被当成 HTML 执行，
+            所以用户写什么都无法逃出样式表（内联的话一个 </style> 就能跳出）。
+          为什么带 ?v=：文件名不变，而 GitHub Pages 对静态资源有 max-age=600，
+            不换 URL 的话改完 CSS 要等十分钟才生效，用户会以为没保存上。
+
+          THEME_EXISTS 由 scripts/build-content.mjs 在构建时算出：
+          没有 theme.css（或内容全是空白/注释）时不输出这个 <link>，避免每次访问留一个 404。
+        */}
+        {THEME_EXISTS && (
+          <link
+            rel="stylesheet"
+            href={withBase('/theme.css') + (THEME_VERSION ? '?v=' + THEME_VERSION : '')}
+          />
+        )}
       </head>
       <body className="antialiased bg-background text-foreground">
         <ThemeProvider

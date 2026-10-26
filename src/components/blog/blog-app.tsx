@@ -133,7 +133,7 @@ function Header() {
 
   return (
     <header className="sticky top-0 z-40 border-b bg-background/80 backdrop-blur">
-      <div className="mx-auto flex h-14 max-w-[68rem] items-center gap-3 px-4 sm:px-6">
+      <div className="mx-auto flex h-14 max-w-[68rem] items-center gap-3 px-4 sm:px-6" data-region="header">
         <button
           type="button"
           onClick={() => goHome()}
@@ -181,7 +181,7 @@ function Views() {
     window.scrollTo({ top: 0 })
   }, [view, slug])
   return (
-    <main className="mx-auto w-full max-w-[68rem] flex-1 px-4 py-8 sm:px-6">
+    <main className="mx-auto w-full max-w-[68rem] flex-1 px-4 py-8 sm:px-6" data-region="main">
       {view === 'home' && <HomeView />}
       {view === 'note' && slug && <NoteView slug={slug} />}
         </main>
@@ -283,7 +283,7 @@ export function BlogApp() {
         <Header />
         <Views />
         <footer className="mt-auto border-t bg-muted/30">
-          <div className="mx-auto flex max-w-[68rem] flex-wrap items-center justify-between gap-2 px-4 py-4 text-xs text-muted-foreground sm:px-6">
+          <div className="mx-auto flex max-w-[68rem] flex-wrap items-center justify-between gap-2 px-4 py-4 text-xs text-muted-foreground sm:px-6" data-region="footer">
             <FooterLine />
           </div>
         </footer>

@@ -328,7 +328,7 @@ export function HomeView() {
 
       {/* 子文件夹：当前层的下一级，网格排布（同一父级的兄弟必然相邻，不再被列打散） */}
       {!isLoading && subFolders.length > 0 && (
-        <div className="mb-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+        <div className="mb-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-3" data-region="folders">
           {subFolders.map((node) => (
             <FolderCard key={node.path} node={node} />
           ))}
