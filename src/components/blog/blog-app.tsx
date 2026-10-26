@@ -278,7 +278,10 @@ export function BlogApp() {
 
   return (
     <QueryClientProvider client={client}>
-      <div className="flex min-h-screen flex-col bg-background text-foreground">
+      <div
+        className="flex min-h-screen flex-col bg-background text-foreground"
+        data-view={view}
+      >
         <Header />
         <Views />
         <footer className="mt-auto border-t bg-muted/30">

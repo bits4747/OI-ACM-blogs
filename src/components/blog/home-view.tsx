@@ -248,7 +248,7 @@ export function HomeView() {
   return (
     <div>
       {/* 标题行：面包屑 + 数量统计（搜索/筛选时结果来自全库，面包屑退回根） */}
-      <div className="mb-5 flex flex-wrap items-center gap-x-3 gap-y-2">
+      <div className="mb-5 flex flex-wrap items-center gap-x-3 gap-y-2" data-region="crumbs">
         <Crumbs path={browsing ? folder : ''} />
         {notes && (
           <span className="text-xs text-muted-foreground">
@@ -284,7 +284,7 @@ export function HomeView() {
       )}
 
       {tagCounts.length > 0 && (
-        <div className="mb-8 flex flex-wrap gap-2">
+        <div className="mb-8 flex flex-wrap gap-2" data-region="tags">
           <button
             type="button"
             onClick={() => setTag(null)}
@@ -337,7 +337,7 @@ export function HomeView() {
 
       {/* 当前文件夹的直属笔记（根目录时即「未分组」；搜索/筛选时是全库结果） */}
       {!isLoading && shown.length > 0 && (
-        <section className="overflow-hidden rounded-xl border border-border/70 bg-card">
+        <section className="overflow-hidden rounded-xl border border-border/70 bg-card" data-region="list">
           <div className="flex items-center gap-2 border-b border-border/60 px-4 py-2.5">
             <FolderOpen className="size-4 shrink-0 text-primary/80" aria-hidden />
             <span className="min-w-0 flex-1 truncate font-serif text-sm font-semibold text-foreground">

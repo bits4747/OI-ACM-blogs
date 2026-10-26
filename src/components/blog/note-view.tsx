@@ -379,7 +379,7 @@ export function NoteView({ slug }: { slug: string }) {
 
   return (
     <div className="mx-auto w-full max-w-[63.4rem]" data-region="note">
-      <article className="mx-auto w-full" style={{ '--note-fs': fontScale } as CSSProperties}>
+      <article className="mx-auto w-full" style={{ '--note-fs': fontScale } as CSSProperties} data-region="article">
       <nav className="mb-4 flex items-center gap-2 text-sm text-muted-foreground" aria-label={t.back}>
         <button
           type="button"
@@ -719,6 +719,7 @@ function NoteToc({ headings }: { headings: HeadingEntry[] }) {
         ref={panelRef}
         className="fixed z-40 flex items-center gap-1 rounded-full border border-border bg-background/95 py-1 pl-3 pr-1 shadow-lg backdrop-blur"
         style={floatStyle}
+        data-region="toc-panel"
       >
         <button
           type="button"
@@ -751,6 +752,7 @@ function NoteToc({ headings }: { headings: HeadingEntry[] }) {
         (dragging ? ' shadow-2xl ring-1 ring-primary/30' : '')
       }
       style={{ width: size?.w ?? 240, ...floatStyle }}
+      data-region="toc-panel"
     >
       <div
         className="flex touch-none cursor-grab select-none items-center gap-1.5 border-b px-3 py-2 active:cursor-grabbing"
