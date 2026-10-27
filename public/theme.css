@@ -1,6 +1,7 @@
 /* ============================================================
-   素笺双栏 —— 两列卡片，灰蓝纸感，等宽数字
-   版面差异体现在：首页文件夹固定两列（默认是三列），列表也两列并排
+   青苔树状 —— 文件树：竖线 + 拐角连接符，绿灰纸感
+   版面差异体现在：首页文件夹做成「树」的一行行，带缩进导轨与 └─ 拐角；
+   笔记列表也用竖线挂着，读起来像资源管理器的目录树
    ⚠️ 宽度由站点统一控制（globals.css 的 --content-w），主题里不写 max-width：
    所有主题的首页与正文宽度必须完全一致，主题只负责颜色、素材，以及
    「非正文界面」的排布（首页文件夹 / 笔记列表 / 标签怎么摆）。
@@ -8,82 +9,89 @@
    ============================================================ */
 
 :root {
-  --radius: 0.35rem;
+  --radius: 0.3rem;
 
-  --background: #f7f8fa;
-  --foreground: #1f2937;
+  --background: #f4f6f3;
+  --foreground: #23302a;
 
-  --card: #ffffff;
-  --card-foreground: #1f2937;
-  --popover: #ffffff;
-  --popover-foreground: #1f2937;
+  --card: #fbfdfa;
+  --card-foreground: #23302a;
+  --popover: #fbfdfa;
+  --popover-foreground: #23302a;
 
-  --primary: #3b6ea5;
-  --primary-foreground: #ffffff;
+  --primary: #4a7c59;
+  --primary-foreground: #f4f6f3;
 
-  --secondary: #eef1f5;
-  --secondary-foreground: #1f2937;
-  --muted: #eef1f5;
-  --muted-foreground: #6b7280;
-  --accent: #e6edf6;
-  --accent-foreground: #1f2937;
+  --secondary: #e8ede6;
+  --secondary-foreground: #23302a;
+  --muted: #e8ede6;
+  --muted-foreground: #6f7d73;
+  --accent: #dfeae0;
+  --accent-foreground: #23302a;
 
-  --border: #dde3ea;
-  --input: #dde3ea;
-  --ring: rgba(59, 110, 165, 0.4);
+  --border: #d5ddd3;
+  --input: #d5ddd3;
+  --ring: rgba(74, 124, 89, 0.4);
 
-  --code-bg: #f2f4f7;
-  --code-head-bg: #e8ecf1;
-  --code-head-fg: #6b7280;
-  --code-fg: #1f2937;
+  --code-bg: #eff3ec;
+  --code-head-bg: #e3e9e0;
+  --code-head-fg: #6f7d73;
+  --code-fg: #23302a;
 }
 
 html.dark {
-  --background: #15181d;
-  --foreground: #dfe4ea;
+  --background: #121713;
+  --foreground: #dce5dd;
 
-  --card: #1c2027;
-  --card-foreground: #dfe4ea;
-  --popover: #1c2027;
-  --popover-foreground: #dfe4ea;
+  --card: #181f19;
+  --card-foreground: #dce5dd;
+  --popover: #181f19;
+  --popover-foreground: #dce5dd;
 
-  --primary: #7aa9dc;
-  --primary-foreground: #10141a;
+  --primary: #7fbe8f;
+  --primary-foreground: #0f1511;
 
-  --secondary: #232830;
-  --secondary-foreground: #dfe4ea;
-  --muted: #232830;
-  --muted-foreground: #98a2b0;
-  --accent: #26303b;
-  --accent-foreground: #e8eef5;
+  --secondary: #1f2721;
+  --secondary-foreground: #dce5dd;
+  --muted: #1f2721;
+  --muted-foreground: #94a397;
+  --accent: #223026;
+  --accent-foreground: #e4eee6;
 
-  --border: rgba(150, 170, 195, 0.2);
-  --input: rgba(150, 170, 195, 0.26);
-  --ring: rgba(122, 169, 220, 0.55);
+  --border: rgba(150, 185, 160, 0.18);
+  --input: rgba(150, 185, 160, 0.24);
+  --ring: rgba(127, 190, 143, 0.55);
 
-  --code-bg: #1a1e24;
-  --code-head-bg: #232830;
-  --code-head-fg: #9aa5b3;
-  --code-fg: #dfe4ea;
+  --code-bg: #171e18;
+  --code-head-bg: #1f2721;
+  --code-head-fg: #9aab9d;
+  --code-fg: #dce5dd;
 }
 
 body,
 .markdown-body {
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC',
     'Hiragino Sans GB', 'Microsoft YaHei', system-ui, sans-serif;
-  font-variant-numeric: tabular-nums;
 }
 
 .markdown-body {
-  line-height: 1.85;
+  line-height: 1.88;
 }
 
 .markdown-body h2 {
-  border-bottom: 1px solid var(--border);
-  padding-bottom: 0.35em;
+  border-bottom: none;
+  border-left: 2px solid var(--primary);
+  padding-left: 0.55em;
+  margin-top: 2.2em;
 }
 
-/* 顶栏：细线，不要毛玻璃 */
+.markdown-body blockquote {
+  border-left: 2px solid var(--border);
+  background: transparent;
+  font-style: normal;
+}
+
+/* 顶栏：一条纸边 */
 header.sticky {
   background: var(--background);
   backdrop-filter: none;
@@ -91,28 +99,105 @@ header.sticky {
 }
 
 /* ============================================================
-   版面：两列素笺
+   版面：文件树
    ============================================================ */
 
-/* 首页文件夹：固定两列（窄屏一列） */
+/* 首页文件夹：单列树。每一行左侧有竖向导轨，行首是 └─ 拐角 */
 [data-region='folders'] {
-  display: grid !important;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 0.85rem !important;
-}
-[data-region='folders'] > * {
-  background: var(--card) !important;
-  border-color: var(--border) !important;
-  box-shadow: 0 1px 2px rgba(31, 41, 55, 0.05) !important;
-  transition: border-color 0.15s ease, box-shadow 0.15s ease;
-}
-[data-region='folders'] > *:hover {
-  border-color: color-mix(in srgb, var(--primary) 55%, transparent) !important;
-  box-shadow: 0 4px 16px rgba(59, 110, 165, 0.1) !important;
-  transform: none !important;
+  display: flex !important;
+  flex-direction: column;
+  gap: 0 !important;
+  margin-bottom: 2.25rem;
+  padding-left: 0.15rem;
+  border-left: 1px solid var(--border);
 }
 
-/* 笔记列表：两列并排，卡片式 */
+[data-region='folders'] > * {
+  position: relative;
+  width: 100%;
+  border: none !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  padding: 0.32rem 0.4rem 0.32rem 2.15rem !important;
+  min-height: 0 !important;
+  gap: 0.4rem !important;
+  transition: background 0.12s ease, padding-left 0.12s ease;
+}
+
+/* 拐角连接符：一条横线接到竖轨上 */
+[data-region='folders'] > *::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 50%;
+  width: 1.1rem;
+  height: 1px;
+  background: var(--border);
+}
+
+/* 树节点的小三角，落在拐角末端 */
+[data-region='folders'] > *::after {
+  content: '▸';
+  position: absolute;
+  left: 1.25rem;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--primary);
+  font-size: calc(0.66 * var(--fsu, 1rem));
+  opacity: 0.7;
+  line-height: 1;
+}
+
+/* 竖轨在最后一行收尾，不画到底 */
+[data-region='folders'] > *:last-child {
+  border-bottom: none !important;
+}
+
+[data-region='folders'] > *:hover {
+  background: color-mix(in srgb, var(--primary) 5%, transparent) !important;
+  padding-left: 1.75rem !important;
+}
+
+/* 文件夹图标换成一个小三角，像树的节点 */
+[data-region='folders'] > * svg {
+  display: none;
+}
+
+/* 名字和篇数压成一行：名字在左，篇数右对齐，行高压到 1.5rem 左右，
+   这样十几行排下来才像一棵树，而不是一列大卡片 */
+[data-region='folders'] > * > span {
+  display: flex !important;
+  align-items: baseline;
+  gap: 0.6rem;
+  min-width: 0;
+}
+[data-region='folders'] > * .font-serif {
+  font-size: calc(0.97 * var(--fsu, 1rem)) !important;
+  font-weight: 500 !important;
+  flex: 0 1 auto;
+}
+[data-region='folders'] > * > span > span:last-child {
+  font-size: calc(0.74 * var(--fsu, 1rem));
+  color: var(--muted-foreground);
+  margin-top: 0 !important;
+  display: inline !important;
+  white-space: nowrap;
+}
+[data-region='folders'] > * > span > span:last-child::before {
+  content: '·';
+  margin-right: 0.45em;
+  opacity: 0.5;
+}
+/* 右侧箭头保留，但缩到很小 */
+[data-region='folders'] > * > svg:last-child {
+  display: block;
+  opacity: 0.35;
+  width: 0.85rem;
+  height: 0.85rem;
+}
+
+/* 笔记列表：也用竖轨挂着，去掉卡片外框 */
 [data-region='list'] {
   border: none !important;
   background: transparent !important;
@@ -125,40 +210,53 @@ header.sticky {
   padding-right: 0 !important;
 }
 [data-region='list'] ul {
-  columns: 2 !important;
-  column-gap: 1rem !important;
-  padding: 0.5rem 0 !important;
+  columns: 1 !important;
+  padding: 0 0 0 0.15rem !important;
+  border-left: 1px solid var(--border);
 }
 [data-region='list'] li > button {
-  border: 1px solid var(--border) !important;
-  background: var(--card) !important;
-  border-radius: var(--radius) !important;
-  padding: 0.5rem 0.7rem !important;
-  margin-bottom: 0.6rem !important;
-  break-inside: avoid;
+  border-radius: 0 !important;
+  padding-left: 1.4rem !important;
+  padding-top: 0.45rem !important;
+  padding-bottom: 0.45rem !important;
+  position: relative;
+}
+[data-region='list'] li > button::before {
+  content: '·';
+  position: absolute;
+  left: 0.6rem;
+  color: var(--primary);
+  opacity: 0.8;
 }
 [data-region='list'] li > button:hover {
-  border-color: color-mix(in srgb, var(--primary) 55%, transparent) !important;
-  background: color-mix(in srgb, var(--primary) 4%, var(--card)) !important;
+  background: color-mix(in srgb, var(--primary) 5%, transparent) !important;
 }
 
-/* 标签：方角小签 */
+/* 标签：无边框，只用竖线分隔 */
+[data-region='tags'] {
+  gap: 0.2rem 1.1rem !important;
+}
 [data-region='tags'] > button {
-  border-radius: 0.2rem !important;
-  font-size: calc(0.75 * var(--fsu, 1rem)) !important;
+  border: none !important;
+  background: transparent !important;
+  border-radius: 0 !important;
+  padding: 0.1rem 0 !important;
+  color: var(--muted-foreground) !important;
+  font-size: calc(0.76 * var(--fsu, 1rem)) !important;
+}
+[data-region='tags'] > button:hover,
+[data-region='tags'] > button[class*='bg-primary'] {
+  color: var(--primary) !important;
 }
 
 /* 页脚 */
 [data-region='footer'] {
-  opacity: 0.72;
-  letter-spacing: 0.04em;
+  opacity: 0.7;
+  letter-spacing: 0.03em;
 }
 
 @media (max-width: 767px) {
-  [data-region='folders'] {
-    grid-template-columns: minmax(0, 1fr);
-  }
-  [data-region='list'] ul {
-    columns: 1 !important;
+  [data-region='folders'] > * {
+    padding-left: 1.3rem !important;
   }
 }
