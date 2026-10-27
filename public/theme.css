@@ -113,17 +113,13 @@ header.sticky {
 }
 
 /* ============================================================
-   版面：极简宽栏 —— 正文满宽居中，首页是纯文字索引表
-   只调「内容区有多宽、首页长什么样」。
+   版面：极简索引表
+   ⚠️ 宽度由站点统一控制（globals.css 的 --content-w），主题里不写 max-width：
+   所有主题的首页、正文宽度必须完全一致，主题只负责颜色、素材和
+   「非正文界面」的排布（首页文件夹 / 笔记列表 / 标签怎么摆）。
    大纲浮层是站点的功能组件（可拖动、可缩放），主题一律不碰它的位置、
    尺寸与排布，最多换换文字颜色 —— 用户明确要求「改版面是改外观，不是功能」。
    ============================================================ */
-
-[data-region='main'] {
-  max-width: 78rem;
-  padding-top: 3.5rem;
-  padding-bottom: 4rem;
-}
 
 /* 大纲浮层：只把强调色换成黑白，位置/宽高/交互完全交给站点自己的实现 */
 [data-region='toc-panel'] .toc-item.toc-active {
@@ -131,26 +127,14 @@ header.sticky {
   font-weight: 600;
 }
 
-/* 正文：满宽居中，两侧留白靠 max-width 控制 */
-[data-region='note'] {
-  display: block !important;
-  max-width: 78rem;
-  margin: 0 auto;
-}
-[data-region='article'] {
-  max-width: 58rem;
-  margin: 0 auto;
-  width: 100%;
-}
-
 /* 文章标题：大字重、紧字距 */
 [data-region='article'] > header h1 {
-  font-size: 2.15rem !important;
+  font-size: calc(2.15 * var(--fsu, 1rem)) !important;
   letter-spacing: -0.025em;
   font-weight: 700;
 }
 
-/* 首页文件夹：从卡片改成索引表的一行行 */
+/* 首页文件夹：单列索引表，一行行读下去 */
 [data-region='folders'] {
   display: flex !important;
   flex-direction: column;
@@ -177,12 +161,12 @@ header.sticky {
   display: none; /* 索引表不要图标 */
 }
 [data-region='folders'] > * .font-serif {
-  font-size: 0.95rem !important;
+  font-size: calc(0.95 * var(--fsu, 1rem)) !important;
   font-weight: 500 !important;
   letter-spacing: 0.01em;
 }
 [data-region='folders'] > * > span > span:last-child {
-  font-size: 0.75rem;
+  font-size: calc(0.75 * var(--fsu, 1rem));
   color: var(--muted-foreground);
 }
 
@@ -225,7 +209,7 @@ header.sticky {
   background: transparent !important;
   border-radius: 0 !important;
   padding: 0.15rem 0 !important;
-  font-size: 0.75rem !important;
+  font-size: calc(0.75 * var(--fsu, 1rem)) !important;
   letter-spacing: 0.03em;
   border-bottom: 1px solid transparent !important;
   color: var(--muted-foreground) !important;
@@ -242,18 +226,12 @@ header.sticky {
   opacity: 0.6;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  font-size: 0.68rem;
+  font-size: calc(0.68 * var(--fsu, 1rem));
 }
 
 /* 窄屏 */
 @media (max-width: 767px) {
-  [data-region='main'] {
-    padding-top: 2rem;
-  }
-  [data-region='article'] {
-    max-width: none;
-  }
   [data-region='article'] > header h1 {
-    font-size: 1.65rem !important;
+    font-size: calc(1.65 * var(--fsu, 1rem)) !important;
   }
 }
