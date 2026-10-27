@@ -1,7 +1,6 @@
 /* ============================================================
-   便当盒 —— 首页做成大小不一的方块拼贴（bento），像一块仪表盘
-   第一块占 2×2 当主位，其余按 4 列自动铺；每块一个低饱和色底，
-   色块顺序固定（第 1~6 块各一色，第 7 块起循环），所以位置稳定不跳色
+   侧栏文档站 —— 左侧固定文件夹导航，右侧当前层的笔记
+   文件夹多、层数深时最好用：左边永远能看到别的目录，点一下就切
    ⚠️ 宽度由站点统一控制（globals.css 的 --content-w），主题里不写 max-width：
    所有主题的首页与正文宽度必须完全一致，主题只负责颜色、素材，以及
    「非正文界面」的排布（首页文件夹 / 笔记列表 / 标签怎么摆）。
@@ -9,79 +8,68 @@
    ============================================================ */
 
 :root {
-  --radius: 1.15rem;
+  --radius: 0.45rem;
 
-  --background: #f1f2f5;
-  --foreground: #1b1e24;
+  --background: #fbfcfd;
+  --foreground: #1c2431;
 
   --card: #ffffff;
-  --card-foreground: #1b1e24;
+  --card-foreground: #1c2431;
   --popover: #ffffff;
-  --popover-foreground: #1b1e24;
+  --popover-foreground: #1c2431;
 
-  --primary: #4b63e0;
+  --primary: #2563eb;
   --primary-foreground: #ffffff;
 
-  --secondary: #e6e8ee;
-  --secondary-foreground: #1b1e24;
-  --muted: #e9ebf0;
-  --muted-foreground: #6b7280;
-  --accent: #e2e6f7;
-  --accent-foreground: #1b1e24;
+  --secondary: #eef2f7;
+  --secondary-foreground: #1c2431;
+  --muted: #f1f4f8;
+  --muted-foreground: #64748b;
+  --accent: #e6eefc;
+  --accent-foreground: #1c2431;
 
-  --border: #dcdfe7;
-  --input: #dcdfe7;
-  --ring: rgba(75, 99, 224, 0.4);
+  --border: #e2e8f0;
+  --input: #e2e8f0;
+  --ring: rgba(37, 99, 235, 0.35);
 
-  --code-bg: #f4f5f8;
-  --code-head-bg: #e8eaf0;
-  --code-head-fg: #6b7280;
-  --code-fg: #1b1e24;
+  --code-bg: #f6f8fa;
+  --code-head-bg: #eaeef3;
+  --code-head-fg: #64748b;
+  --code-fg: #1c2431;
 
-  /* 便当盒的六个色底（日间：低饱和浅色） */
-  --bento-1: #dfe4fd;
-  --bento-2: #dcefe4;
-  --bento-3: #fbe6d8;
-  --bento-4: #f3e0f2;
-  --bento-5: #e3e6ea;
-  --bento-6: #fdf0d3;
+  /* 侧栏底色，比页面底色再浅一档，边界自然 */
+  --sidebar-bg: #f4f7fb;
 }
 
 html.dark {
-  --background: #14161b;
-  --foreground: #e6e8ee;
+  --background: #0f141b;
+  --foreground: #dde3ec;
 
-  --card: #1c1f26;
-  --card-foreground: #e6e8ee;
-  --popover: #1c1f26;
-  --popover-foreground: #e6e8ee;
+  --card: #161d26;
+  --card-foreground: #dde3ec;
+  --popover: #161d26;
+  --popover-foreground: #dde3ec;
 
-  --primary: #8b9bff;
-  --primary-foreground: #101218;
+  --primary: #6ea8ff;
+  --primary-foreground: #0b1016;
 
-  --secondary: #232730;
-  --secondary-foreground: #e6e8ee;
-  --muted: #232730;
-  --muted-foreground: #9aa1ae;
-  --accent: #262b36;
-  --accent-foreground: #eef0f5;
+  --secondary: #1b242f;
+  --secondary-foreground: #dde3ec;
+  --muted: #1b242f;
+  --muted-foreground: #8b9aae;
+  --accent: #1f2b3a;
+  --accent-foreground: #e7edf5;
 
-  --border: #2b303a;
-  --input: #333947;
-  --ring: rgba(139, 155, 255, 0.5);
+  --border: #253040;
+  --input: #2c394b;
+  --ring: rgba(110, 168, 255, 0.5);
 
-  --code-bg: #171a20;
-  --code-head-bg: #1f232b;
-  --code-head-fg: #9aa1ae;
-  --code-fg: #e6e8ee;
+  --code-bg: #121922;
+  --code-head-bg: #1a2330;
+  --code-head-fg: #8b9aae;
+  --code-fg: #dde3ec;
 
-  /* 夜间：同色相的深色版，保证对比度够 */
-  --bento-1: #1e2547;
-  --bento-2: #163226;
-  --bento-3: #3a2718;
-  --bento-4: #35203a;
-  --bento-5: #23272f;
-  --bento-6: #3a3018;
+  --sidebar-bg: #121924;
 }
 
 body,
@@ -91,201 +79,209 @@ body,
 }
 
 .markdown-body {
-  line-height: 1.85;
+  line-height: 1.82;
 }
 
 .markdown-body h2 {
-  border-bottom: none;
-  margin-top: 2.4em;
-  letter-spacing: -0.01em;
-}
-.markdown-body h2::before {
-  content: '';
-  display: inline-block;
-  width: 0.42em;
-  height: 0.42em;
-  margin-right: 0.5em;
-  border-radius: 0.1em;
-  background: var(--primary);
-  vertical-align: 0.18em;
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 0.3em;
+  margin-top: 2.3em;
+  font-weight: 600;
 }
 
 .markdown-body blockquote {
+  border-left: 2px solid var(--primary);
   background: var(--muted);
-  border-left: none;
-  border-radius: 0.85rem;
+  border-radius: 0 var(--radius) var(--radius) 0;
   font-style: normal;
-  padding: 0.85em 1.1em;
 }
 
-/* 顶栏：无边框，靠一层浅底区分 */
+/* 顶栏：极薄一层，和页面同色 */
 header.sticky {
   background: var(--background);
   backdrop-filter: none;
-  border-bottom: none;
-  box-shadow: 0 1px 0 var(--border);
+  border-bottom: 1px solid var(--border);
 }
 
 /* ============================================================
-   版面：便当盒
+   版面：左侧文档导航
+   ------------------------------------------------------------
+   首页的父容器里有兄弟：crumbs / tags / folders / list。
+   用 :has() 把父容器变成两列网格，把 folders 提到左列并让它跨行，
+   其余三块留在右列。没有子文件夹时（:has 不成立）自动退回单列，
+   所以不会出现一个空着的左栏。
    ============================================================ */
-
-/* 首页文件夹：4 列方块，第一块占 2×2 */
-[data-region='folders'] {
-  display: grid !important;
-  grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
-  grid-auto-rows: 4.6rem;
-  gap: 0.7rem !important;
-  margin-bottom: 1.6rem !important;
+[data-region='main'] > div:has(> [data-region='folders']) {
+  display: grid;
+  grid-template-columns: 15.5rem minmax(0, 1fr);
+  grid-template-rows: auto auto 1fr;
+  column-gap: 2rem;
+  align-items: start;
 }
 
-/* 色底按顺序发，一循环六色；位置只由 DOM 顺序决定，所以不会跳 */
-[data-region='folders'] > *:nth-child(6n + 1) { background: var(--bento-1) !important; }
-[data-region='folders'] > *:nth-child(6n + 2) { background: var(--bento-2) !important; }
-[data-region='folders'] > *:nth-child(6n + 3) { background: var(--bento-3) !important; }
-[data-region='folders'] > *:nth-child(6n + 4) { background: var(--bento-4) !important; }
-[data-region='folders'] > *:nth-child(6n + 5) { background: var(--bento-5) !important; }
-[data-region='folders'] > *:nth-child(6n + 6) { background: var(--bento-6) !important; }
+[data-region='main'] > div:has(> [data-region='folders']) > [data-region='crumbs'] {
+  grid-column: 2;
+  grid-row: 1;
+  margin-bottom: 1.1rem;
+}
+
+[data-region='main'] > div:has(> [data-region='folders']) > [data-region='tags'] {
+  grid-column: 2;
+  grid-row: 2;
+  margin-bottom: 1.1rem;
+}
+
+[data-region='main'] > div:has(> [data-region='folders']) > [data-region='folders'] {
+  grid-column: 1;
+  grid-row: 1 / span 3;
+  align-self: start;
+  position: sticky;
+  top: 4.6rem;
+  max-height: calc(100vh - 6.5rem);
+  overflow-y: auto;
+  margin-bottom: 0 !important;
+}
+
+/* 左栏里没有列表时（例如只有文件夹、笔记为空），列表那一行不占位 */
+[data-region='main'] > div:has(> [data-region='folders']) > [data-region='list'] {
+  grid-column: 2;
+  grid-row: 3;
+  margin-top: 0;
+}
+
+/* 左栏：竖排导航。选中/悬浮项左侧一条竖线 */
+[data-region='folders'] {
+  display: flex !important;
+  flex-direction: column;
+  gap: 0.1rem !important;
+  padding: 0.55rem !important;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--sidebar-bg);
+}
 
 [data-region='folders'] > * {
-  height: 100%;
+  width: 100%;
+  min-height: 0 !important;
+  padding: 0.42rem 0.5rem !important;
+  gap: 0.5rem !important;
   border: none !important;
-  border-radius: var(--radius) !important;
+  border-radius: 0.32rem !important;
+  background: transparent !important;
   box-shadow: none !important;
-  padding: 0.85rem 0.95rem !important;
-  align-items: flex-start !important;
-  gap: 0.55rem !important;
-  transition: transform 0.16s ease, box-shadow 0.16s ease;
+  border-left: 2px solid transparent !important;
+  transition: background 0.12s ease, border-color 0.12s ease;
 }
 
 [data-region='folders'] > *:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 8px 22px -12px rgba(20, 24, 34, 0.55) !important;
+  background: var(--accent) !important;
+  border-left-color: var(--primary) !important;
 }
 
-/* 主位砖只在文件夹够多时才启用：少于 5 个时强行占 2×2 会在右下角
-   留下一个填不满的空洞，反而不像「便当盒」。4 个以内就四块等分。 */
-[data-region='folders']:has(> *:nth-child(5)) > *:first-child {
-  grid-column: span 2;
-  grid-row: span 2;
-  padding: 1.15rem 1.2rem !important;
-  flex-direction: column !important;
-  justify-content: flex-end;
-}
-[data-region='folders']:has(> *:nth-child(5)) > *:first-child > span {
-  width: 100%;
-}
-[data-region='folders']:has(> *:nth-child(5)) > *:first-child .font-serif {
-  font-size: calc(1.5 * var(--fsu, 1rem)) !important;
-  line-height: 1.25;
-  white-space: normal !important;
-  overflow: visible !important;
+[data-region='folders'] > * .font-serif {
+  font-size: calc(0.88 * var(--fsu, 1rem)) !important;
+  font-weight: 500 !important;
 }
 
-/* 方块内部：名字在上、篇数在下，图标缩成小角标 */
+/* 篇数挪到名字右边，用括号，像文档站的目录计数 */
 [data-region='folders'] > * > span {
   display: flex !important;
-  flex-direction: column;
-  gap: 0.1rem;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.35rem;
   min-width: 0;
 }
-[data-region='folders'] > * .font-serif {
-  font-size: calc(0.95 * var(--fsu, 1rem)) !important;
-  font-weight: 600 !important;
-  letter-spacing: -0.01em;
-}
 [data-region='folders'] > * > span > span:last-child {
-  font-size: calc(0.7 * var(--fsu, 1rem));
-  color: var(--muted-foreground);
   margin-top: 0 !important;
-  white-space: normal !important;
+  font-size: calc(0.7 * var(--fsu, 1rem)) !important;
+  color: var(--muted-foreground);
+  white-space: nowrap;
 }
-/* 图标缩小、颜色跟着文字走 */
+[data-region='folders'] > * > span > span:last-child::before {
+  content: '(';
+}
+[data-region='folders'] > * > span > span:last-child::after {
+  content: ')';
+}
+
+/* 文件夹图标缩成小点，目录树不需要大图标 */
 [data-region='folders'] > * > svg:first-child {
-  width: 1rem !important;
-  height: 1rem !important;
-  opacity: 0.55;
+  width: 0.85rem !important;
+  height: 0.85rem !important;
+  opacity: 0.5;
 }
-/* 右侧箭头去掉，方块不需要指示方向 */
+/* 右侧箭头去掉：已经点了就切，不需要方向提示 */
 [data-region='folders'] > * > svg:last-child {
   display: none;
 }
 
-/* 笔记列表：一块白底大卡，内部两栏 */
+/* 右栏：列表去掉外框，改成文档正文式的段落列表 */
 [data-region='list'] {
-  border: none !important;
+  border: 1px solid var(--border) !important;
   border-radius: var(--radius) !important;
   background: var(--card) !important;
-  box-shadow: 0 1px 0 var(--border) !important;
-  overflow: visible !important;
 }
 [data-region='list'] > div:first-child {
+  padding: 0.62rem 0.9rem !important;
+  background: var(--muted) !important;
   border-bottom: 1px solid var(--border) !important;
-  background: transparent !important;
-  padding: 0.7rem 1rem !important;
 }
 [data-region='list'] ul {
   columns: 1 !important;
-  padding: 0.4rem !important;
+  padding: 0.35rem 0.55rem !important;
 }
 [data-region='list'] li > button {
-  border-radius: 0.7rem !important;
-  padding: 0.42rem 0.7rem !important;
+  border-radius: 0.3rem !important;
+  padding: 0.36rem 0.5rem !important;
 }
 [data-region='list'] li > button:hover {
-  background: var(--muted) !important;
+  background: var(--accent) !important;
 }
 
-/* 标签：小方糖，无边框 */
-[data-region='tags'] {
-  gap: 0.4rem !important;
-  margin-bottom: 1.1rem !important;
-}
+/* 标签：方角小按钮 */
 [data-region='tags'] > button {
-  border: none !important;
-  border-radius: 0.6rem !important;
+  border-radius: 0.3rem !important;
   background: var(--card) !important;
-  padding: 0.3rem 0.6rem !important;
-  font-size: calc(0.72 * var(--fsu, 1rem)) !important;
-  color: var(--muted-foreground) !important;
-  box-shadow: 0 1px 0 var(--border);
+  border-color: var(--border) !important;
+  font-size: calc(0.73 * var(--fsu, 1rem)) !important;
 }
-[data-region='tags'] > button:hover {
-  color: var(--foreground) !important;
-}
+/* 选中态必须把背景和文字色一起写回：上面那条规则把 background 统一改成了
+   --card，而站点给选中态用的是 bg-primary + text-primary-foreground，
+   只改 border 会让「白字 + 白底」变成一块空框 */
 [data-region='tags'] > button[class*='bg-primary'] {
   background: var(--primary) !important;
+  border-color: var(--primary) !important;
   color: var(--primary-foreground) !important;
 }
 
-/* 文章标题：方一点、紧一点 */
+/* 文章标题：文档标题的克制感 */
 [data-region='article'] > header h1 {
-  font-size: calc(2.05 * var(--fsu, 1rem)) !important;
-  letter-spacing: -0.02em;
+  font-size: calc(1.95 * var(--fsu, 1rem)) !important;
+  font-weight: 700;
+  letter-spacing: -0.015em;
 }
 
-/* 页脚 */
-[data-region='footer'] {
-  justify-content: center !important;
-  opacity: 0.55;
-  font-size: calc(0.72 * var(--fsu, 1rem));
-}
-
-/* 宽屏才铺 4 列；窄屏自然降列数，避免方块挤成一条 */
-@media (max-width: 1023px) {
-  [data-region='folders'] {
-    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+/* 窄屏：左栏落到顶部，变成一行横向滚动的目录条 */
+@media (max-width: 899px) {
+  [data-region='main'] > div:has(> [data-region='folders']) {
+    display: block;
   }
-}
-@media (max-width: 639px) {
-  [data-region='folders'] {
-    grid-template-columns: minmax(0, 1fr) !important;
+  [data-region='main'] > div:has(> [data-region='folders']) > [data-region='folders'] {
+    position: static;
+    max-height: none;
+    overflow: visible;
+    flex-direction: row !important;
+    flex-wrap: wrap;
+    margin-bottom: 1.2rem !important;
   }
-  [data-region='folders']:has(> *:nth-child(5)) > *:first-child {
-    grid-column: span 1;
-    grid-row: span 1;
+  [data-region='folders'] > * {
+    width: auto;
+    flex: 0 0 auto;
+    border-left-width: 0 !important;
+    border-bottom: 2px solid transparent !important;
   }
-  [data-region='article'] > header h1 {
-    font-size: calc(1.6 * var(--fsu, 1rem)) !important;
+  [data-region='folders'] > *:hover {
+    border-left-color: transparent !important;
+    border-bottom-color: var(--primary) !important;
   }
 }
