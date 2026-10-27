@@ -1,115 +1,111 @@
 /* ============================================================
-   墨绿书斋 —— 书页气质：暖纸底 + 松墨绿 + 全衬线 + 首行缩进
-   版面差异体现在：宽栏正文 + 三列纸卡首页 + 书脊式标题装饰
-   （大纲是站点的悬浮组件，任何主题都不去动它的位置与交互）
+   极简黑白 —— 满宽版式：正文满宽居中，首页是纯文字索引表
+   纯白 / 纯黑，无彩色，零圆角，只靠字重与留白
    ============================================================ */
 
 :root {
-  --radius: 0.2rem;
+  --radius: 0;
 
-  --background: #f6f2e9;
-  --foreground: #22302a;
+  --background: #ffffff;
+  --foreground: #111111;
 
-  --card: #fffdf6;
-  --card-foreground: #22302a;
-  --popover: #fffdf6;
-  --popover-foreground: #22302a;
+  --card: #ffffff;
+  --card-foreground: #111111;
+  --popover: #ffffff;
+  --popover-foreground: #111111;
 
-  --primary: #2f6b4f;
-  --primary-foreground: #f6f2e9;
+  --primary: #111111;
+  --primary-foreground: #ffffff;
 
-  --secondary: #e9e3d3;
-  --secondary-foreground: #22302a;
-  --muted: #ece6d8;
-  --muted-foreground: #6d7c71;
-  --accent: #e2ece5;
-  --accent-foreground: #22302a;
+  --secondary: #f4f4f4;
+  --secondary-foreground: #111111;
+  --muted: #f4f4f4;
+  --muted-foreground: #767676;
+  --accent: #eeeeee;
+  --accent-foreground: #111111;
 
-  --border: #dcd3c0;
-  --input: #dcd3c0;
-  --ring: rgba(47, 107, 79, 0.45);
+  --border: #e0e0e0;
+  --input: #e0e0e0;
+  --ring: rgba(17, 17, 17, 0.35);
 
-  --code-bg: #f1ecdf;
-  --code-head-bg: #e6dfcd;
-  --code-head-fg: #5d6b60;
-  --code-fg: #22302a;
+  --code-bg: #f7f7f7;
+  --code-head-bg: #efefef;
+  --code-head-fg: #767676;
+  --code-fg: #111111;
 }
 
 html.dark {
-  --background: #141a17;
-  --foreground: #dfe7e0;
+  --background: #000000;
+  --foreground: #ededed;
 
-  --card: #1b2320;
-  --card-foreground: #dfe7e0;
-  --popover: #1b2320;
-  --popover-foreground: #dfe7e0;
+  --card: #000000;
+  --card-foreground: #ededed;
+  --popover: #000000;
+  --popover-foreground: #ededed;
 
-  --primary: #6fc394;
-  --primary-foreground: #10201a;
+  --primary: #ededed;
+  --primary-foreground: #000000;
 
-  --secondary: #232d28;
-  --secondary-foreground: #dfe7e0;
-  --muted: #232d28;
-  --muted-foreground: #93a79a;
-  --accent: #26332c;
-  --accent-foreground: #e6eee8;
+  --secondary: #121212;
+  --secondary-foreground: #ededed;
+  --muted: #121212;
+  --muted-foreground: #8a8a8a;
+  --accent: #1a1a1a;
+  --accent-foreground: #f5f5f5;
 
-  --border: rgba(160, 190, 170, 0.2);
-  --input: rgba(160, 190, 170, 0.26);
-  --ring: rgba(111, 195, 148, 0.6);
+  --border: #2a2a2a;
+  --input: #333333;
+  --ring: rgba(237, 237, 237, 0.4);
 
-  --code-bg: #1a221e;
-  --code-head-bg: #232d28;
-  --code-head-fg: #9db3a4;
-  --code-fg: #dfe7e0;
+  --code-bg: #0a0a0a;
+  --code-head-bg: #141414;
+  --code-head-fg: #8a8a8a;
+  --code-fg: #ededed;
 }
 
-/* 正文全用衬线，标题更重一些，读起来像一本书 */
 body,
 .markdown-body {
-  font-family: 'Songti SC', 'STSong', 'Noto Serif SC', 'Source Han Serif SC',
-    'SimSun', Georgia, 'Times New Roman', serif;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC',
+    'Hiragino Sans GB', 'Microsoft YaHei', system-ui, sans-serif;
 }
 
 .markdown-body {
-  line-height: 1.95;
+  line-height: 1.9;
   letter-spacing: 0.01em;
 }
 
+/* 标题：不要装饰线，只靠字号与字重 */
 .markdown-body h1,
 .markdown-body h2,
 .markdown-body h3 {
-  letter-spacing: 0.02em;
+  font-family: inherit;
+  letter-spacing: -0.01em;
 }
-
-/* 段落首行缩进两字，中文长文的传统排版 */
-.markdown-body p {
-  text-indent: 2em;
-  margin: 0.75em 0;
-}
-.markdown-body li p,
-.markdown-body blockquote p,
-.markdown-body td p,
-.markdown-body .callout p {
-  text-indent: 0;
-}
-
-/* 二级标题做成「小节」的样子：左侧一道竖线，不要下划线 */
 .markdown-body h2 {
   border-bottom: none;
-  border-left: 3px solid var(--primary);
-  padding-left: 0.6em;
-  margin-top: 2.2em;
+  margin-top: 2.4em;
+}
+/* 章节前一条极短的实线，作为唯一的分隔符 */
+.markdown-body h2::before {
+  content: '';
+  display: block;
+  width: 2rem;
+  height: 1px;
+  background: var(--foreground);
+  margin-bottom: 0.8em;
+  opacity: 0.8;
 }
 
-/* 引用块：竖线 + 极浅底色 */
+/* 引用：不要底色，只要竖线 */
 .markdown-body blockquote {
-  border-left: 3px solid var(--primary);
-  background: color-mix(in srgb, var(--primary) 6%, transparent);
+  background: transparent;
+  border-left: 1px solid var(--foreground);
+  border-radius: 0;
+  padding-left: 1.1em;
   font-style: normal;
 }
 
-/* 顶栏：去掉毛玻璃，改成一条纸边 */
+/* 顶栏：一条细线，别无他物 */
 header.sticky {
   background: var(--background);
   backdrop-filter: none;
@@ -117,52 +113,147 @@ header.sticky {
 }
 
 /* ============================================================
-   版面：宽栏书页 —— 内容区放宽，正文占满阅读宽度
+   版面：极简宽栏 —— 正文满宽居中，首页是纯文字索引表
+   只调「内容区有多宽、首页长什么样」。
+   大纲浮层是站点的功能组件（可拖动、可缩放），主题一律不碰它的位置、
+   尺寸与排布，最多换换文字颜色 —— 用户明确要求「改版面是改外观，不是功能」。
    ============================================================ */
 
 [data-region='main'] {
-  max-width: 86rem;
+  max-width: 78rem;
+  padding-top: 3.5rem;
+  padding-bottom: 4rem;
 }
 
+/* 大纲浮层：只把强调色换成黑白，位置/宽高/交互完全交给站点自己的实现 */
+[data-region='toc-panel'] .toc-item.toc-active {
+  color: var(--foreground);
+  font-weight: 600;
+}
+
+/* 正文：满宽居中，两侧留白靠 max-width 控制 */
 [data-region='note'] {
-  max-width: 86rem;
+  display: block !important;
+  max-width: 78rem;
+  margin: 0 auto;
 }
-
 [data-region='article'] {
-  max-width: 62rem;
-  min-width: 0;
+  max-width: 58rem;
+  margin: 0 auto;
+  width: 100%;
 }
 
-/* 首页卡片：细边框 + 极轻的纸阴影，三列 */
+/* 文章标题：大字重、紧字距 */
+[data-region='article'] > header h1 {
+  font-size: 2.15rem !important;
+  letter-spacing: -0.025em;
+  font-weight: 700;
+}
+
+/* 首页文件夹：从卡片改成索引表的一行行 */
 [data-region='folders'] {
-  gap: 1rem !important;
+  display: flex !important;
+  flex-direction: column;
+  gap: 0 !important;
+  border-top: 1px solid var(--foreground);
+  margin-bottom: 2.5rem;
 }
-[data-region='folders'] a,
 [data-region='folders'] > * {
-  box-shadow: 0 1px 0 var(--border);
-  transition: box-shadow 0.18s ease, transform 0.18s ease;
+  width: 100%;
+  border: none !important;
+  border-bottom: 1px solid var(--border) !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  padding: 0.7rem 0.2rem !important;
+  transition: padding-left 0.15s ease;
 }
-[data-region='folders'] a:hover,
 [data-region='folders'] > *:hover {
-  box-shadow: 0 3px 14px rgba(47, 107, 79, 0.12);
-  transform: translateY(-1px);
+  background: transparent !important;
+  transform: none !important;
+  padding-left: 0.7rem !important;
+}
+[data-region='folders'] > * svg {
+  display: none; /* 索引表不要图标 */
+}
+[data-region='folders'] > * .font-serif {
+  font-size: 0.95rem !important;
+  font-weight: 500 !important;
+  letter-spacing: 0.01em;
+}
+[data-region='folders'] > * > span > span:last-child {
+  font-size: 0.75rem;
+  color: var(--muted-foreground);
 }
 
-/* 笔记列表：行悬停时极浅的绿 */
-[data-region='main'] li:hover {
-  background: color-mix(in srgb, var(--primary) 5%, transparent);
+/* 笔记列表：同样去掉外框 */
+[data-region='list'] {
+  border: none !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+[data-region='list'] > div:first-child {
+  border-bottom: 1px solid var(--foreground) !important;
+  background: transparent !important;
+  padding-left: 0 !important;
+  padding-right: 0 !important;
+}
+[data-region='list'] ul {
+  columns: 1 !important;
+  padding: 0 !important;
+}
+[data-region='list'] li > button {
+  border-radius: 0 !important;
+  padding-left: 0.2rem !important;
+  padding-top: 0.55rem !important;
+  padding-bottom: 0.55rem !important;
+}
+[data-region='list'] li > button:hover {
+  background: transparent !important;
+  padding-left: 0.6rem !important;
 }
 
-/* 页脚低调 */
+/* 标签：不要胶囊，改成下划线文字 */
+[data-region='tags'] {
+  gap: 0.15rem 1.4rem !important;
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 1rem;
+  margin-bottom: 2.5rem !important;
+}
+[data-region='tags'] > button {
+  border: none !important;
+  background: transparent !important;
+  border-radius: 0 !important;
+  padding: 0.15rem 0 !important;
+  font-size: 0.75rem !important;
+  letter-spacing: 0.03em;
+  border-bottom: 1px solid transparent !important;
+  color: var(--muted-foreground) !important;
+}
+[data-region='tags'] > button:hover,
+[data-region='tags'] > button[class*='bg-primary'] {
+  color: var(--foreground) !important;
+  border-bottom-color: var(--foreground) !important;
+}
+
+/* 页脚 */
 [data-region='footer'] {
-  opacity: 0.75;
-  font-size: 0.72rem;
-  letter-spacing: 0.05em;
+  justify-content: center !important;
+  opacity: 0.6;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  font-size: 0.68rem;
 }
 
-/* 窄屏：正文吃满 */
-@media (max-width: 1023px) {
+/* 窄屏 */
+@media (max-width: 767px) {
+  [data-region='main'] {
+    padding-top: 2rem;
+  }
   [data-region='article'] {
     max-width: none;
+  }
+  [data-region='article'] > header h1 {
+    font-size: 1.65rem !important;
   }
 }
