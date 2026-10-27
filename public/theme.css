@@ -1,152 +1,176 @@
 /* ============================================================
-   樱纸 —— 杂志气质：极浅粉白 + 玫红点缀 + 大留白 + 单列大卡片
-   版面差异体现在：首页单列大卡片（一行一个）+ 文章标题居中放大（宽度与默认主题一致）
+   终端 —— 命令行气质：全等宽字体 + `ls` 式列表
+   版面差异体现在：首页做成命令输出行、列表前缀 `>`（宽度与默认主题一致）
    （大纲是站点的悬浮组件，任何主题都不去动它的位置与交互）
    ============================================================ */
 
 :root {
-  --radius: 1.1rem;
+  --radius: 0;
 
-  --background: #fdf8f8;
-  --foreground: #3a2b30;
+  --background: #fbfbf8;
+  --foreground: #1b1f1b;
 
   --card: #ffffff;
-  --card-foreground: #3a2b30;
+  --card-foreground: #1b1f1b;
   --popover: #ffffff;
-  --popover-foreground: #3a2b30;
+  --popover-foreground: #1b1f1b;
 
-  --primary: #c2456b;
-  --primary-foreground: #fff8fa;
+  --primary: #16794a;
+  --primary-foreground: #f2fff7;
 
-  --secondary: #fbeef1;
-  --secondary-foreground: #4a3239;
-  --muted: #f7ecef;
-  --muted-foreground: #8a6f78;
-  --accent: #fce4ea;
-  --accent-foreground: #3a2b30;
+  --secondary: #eef2ea;
+  --secondary-foreground: #1b1f1b;
+  --muted: #eef1ea;
+  --muted-foreground: #5c6b5f;
+  --accent: #e2f3e7;
+  --accent-foreground: #10251a;
 
-  --border: #f0dfe4;
-  --input: #f0dfe4;
-  --ring: rgba(194, 69, 107, 0.4);
+  --border: #cfd8cb;
+  --input: #cfd8cb;
+  --ring: rgba(22, 121, 74, 0.5);
 
-  --code-bg: #fbf2f4;
-  --code-head-bg: #f6e7eb;
-  --code-head-fg: #8a6f78;
-  --code-fg: #3a2b30;
+  --code-bg: #f2f5ef;
+  --code-head-bg: #e6ebe2;
+  --code-head-fg: #5c6b5f;
+  --code-fg: #1b1f1b;
 }
 
 html.dark {
-  --background: #1a1417;
-  --foreground: #f0e2e6;
+  --background: #05070a;
+  --foreground: #c8f7d4;
 
-  --card: #241b1f;
-  --card-foreground: #f0e2e6;
-  --popover: #241b1f;
-  --popover-foreground: #f0e2e6;
+  --card: #0b0f14;
+  --card-foreground: #c8f7d4;
+  --popover: #0b0f14;
+  --popover-foreground: #c8f7d4;
 
-  --primary: #f08bab;
-  --primary-foreground: #2a1219;
+  --primary: #39ff88;
+  --primary-foreground: #04140a;
 
-  --secondary: #2d2227;
-  --secondary-foreground: #f0e2e6;
-  --muted: #2d2227;
-  --muted-foreground: #b394a0;
-  --accent: #35262c;
-  --accent-foreground: #f7eaee;
+  --secondary: #0f151c;
+  --secondary-foreground: #c8f7d4;
+  --muted: #0f151c;
+  --muted-foreground: #6f8a7c;
+  --accent: #12251a;
+  --accent-foreground: #d8ffe4;
 
-  --border: rgba(230, 170, 190, 0.18);
-  --input: rgba(230, 170, 190, 0.24);
-  --ring: rgba(240, 139, 171, 0.55);
+  --border: rgba(57, 255, 136, 0.22);
+  --input: rgba(57, 255, 136, 0.28);
+  --ring: rgba(57, 255, 136, 0.6);
 
-  --code-bg: #211a1e;
-  --code-head-bg: #2d2227;
-  --code-head-fg: #b394a0;
-  --code-fg: #f0e2e6;
+  --code-bg: #080c10;
+  --code-head-bg: #0f151c;
+  --code-head-fg: #6f8a7c;
+  --code-fg: #c8f7d4;
 }
 
-/* 字重轻一点、字距松一点，留白才显得是刻意的 */
+/* 全站等宽，这是「终端」的立身之本 */
 body,
-.markdown-body {
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC',
-    'Hiragino Sans GB', 'Microsoft YaHei', system-ui, sans-serif;
+.markdown-body,
+.font-serif {
+  font-family: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas,
+    'Liberation Mono', monospace !important;
 }
 
 .markdown-body {
-  line-height: 2.05;
-  letter-spacing: 0.015em;
+  line-height: 1.85;
+  letter-spacing: 0;
 }
 
-/* 标题用衬线 + 大字号 + 松字距，正文无衬线，拉开层次 */
-.markdown-body h1,
-.markdown-body h2,
-.markdown-body h3 {
-  font-family: 'Songti SC', 'STSong', 'Noto Serif SC', Georgia, serif;
-  letter-spacing: 0.03em;
-  font-weight: 600;
-}
+/* 标题：不要下划线，改成 `## ` 前缀 */
 .markdown-body h2 {
   border-bottom: none;
-  font-size: 1.42em;
-  margin-top: 2.6em;
+  color: var(--primary);
 }
-/* 标题上方加一个小圆点做分隔，杂志感 */
 .markdown-body h2::before {
-  content: '';
-  display: block;
-  width: 0.42em;
-  height: 0.42em;
-  border-radius: 50%;
-  background: var(--primary);
-  margin-bottom: 0.55em;
+  content: '## ';
+  opacity: 0.55;
+}
+.markdown-body h3::before {
+  content: '### ';
+  opacity: 0.45;
+  font-size: 0.9em;
 }
 
+/* 链接：下划线不要，用方括号包裹的观感 */
+.markdown-body a.internal-link,
+.markdown-body a.external-link {
+  border-bottom: none;
+  text-decoration: underline;
+  text-decoration-style: dotted;
+  text-underline-offset: 3px;
+}
+
+/* 引用：不要圆角，直接 `> ` 提示 */
 .markdown-body blockquote {
-  border-left: none;
-  border-radius: var(--radius);
-  background: color-mix(in srgb, var(--primary) 6%, transparent);
-  padding: 1em 1.4em;
+  border-left: 2px solid var(--primary);
+  border-radius: 0;
+  background: transparent;
+  padding-left: 1em;
   font-style: normal;
-  color: var(--foreground);
 }
 
-/* 顶栏：不要边界，只留一条极淡的线 */
+/* 代码块：不要圆角，边框实线 */
+.markdown-body .code-block,
+.markdown-body code.inline-code {
+  border-radius: 0 !important;
+}
+
+/* 顶栏：一条命令行 */
 header.sticky {
-  background: color-mix(in srgb, var(--background) 88%, transparent);
-  backdrop-filter: blur(10px);
-  border-bottom: 1px solid color-mix(in srgb, var(--border) 60%, transparent);
+  background: var(--background);
+  backdrop-filter: none;
+  border-bottom: 1px solid var(--primary);
+}
+[data-region='header'] > button:first-child::before {
+  content: '~/';
+  opacity: 0.55;
+  margin-right: 0.15em;
 }
 
 /* ============================================================
-   版面：杂志开本 —— 首页单列大卡片，大留白
+   版面：命令行输出
    ⚠️ 宽度由站点统一控制（globals.css 的 --content-w），主题里不写 max-width。
    ============================================================ */
 
-/* 首页文件夹：单列大卡片，一行一个，像目录页 */
+/* 首页：文件夹不做卡片，做成终端里 `ls` 的一行行输出 */
 [data-region='folders'] {
   display: flex !important;
   flex-direction: column;
-  gap: 0.6rem !important;
-  margin-bottom: 3rem;
+  gap: 0 !important;
+  border-top: 1px solid var(--border);
+  margin-bottom: 2rem;
 }
 [data-region='folders'] > * {
   width: 100%;
-  border-radius: var(--radius) !important;
-  padding: 1.15rem 1.5rem !important;
-  border-color: color-mix(in srgb, var(--border) 80%, transparent) !important;
+  border: none !important;
+  border-bottom: 1px solid color-mix(in srgb, var(--border) 55%, transparent) !important;
+  border-radius: 0 !important;
+  background: transparent !important;
   box-shadow: none !important;
-  transition: background 0.2s ease, transform 0.2s ease;
+  padding: 0.5rem 0.25rem !important;
+  gap: 0.75rem !important;
+  transition: background 0.12s ease;
 }
 [data-region='folders'] > *:hover {
-  background: color-mix(in srgb, var(--primary) 4%, transparent) !important;
-  transform: translateX(4px);
+  background: color-mix(in srgb, var(--primary) 8%, transparent) !important;
+  transform: none !important;
 }
-/* 文件夹名放大，篇数缩小靠右 */
+[data-region='folders'] > * svg {
+  color: var(--primary) !important;
+  opacity: 0.9;
+}
 [data-region='folders'] > * .font-serif {
-  font-size: calc(1.12 * var(--fsu, 1rem)) !important;
-  letter-spacing: 0.02em;
+  font-size: calc(0.92 * var(--fsu, 1rem)) !important;
+  font-weight: 400 !important;
+}
+/* 篇数右对齐，用点线连过去 */
+[data-region='folders'] > * > span > span:last-child {
+  font-size: calc(0.78 * var(--fsu, 1rem));
+  color: var(--muted-foreground);
 }
 
-/* 笔记列表：同样单列，行距拉开 */
+/* 笔记列表：去掉外框，行前面加 `>` */
 [data-region='list'] {
   border: none !important;
   background: transparent !important;
@@ -160,60 +184,39 @@ header.sticky {
 }
 [data-region='list'] ul {
   columns: 1 !important;
-  padding: 0.5rem 0 !important;
+  padding: 0 !important;
+}
+[data-region='list'] li > button::before {
+  content: '>';
+  color: var(--primary);
+  margin-right: 0.5em;
+  opacity: 0.75;
 }
 [data-region='list'] li > button {
-  padding-top: 0.55rem !important;
-  padding-bottom: 0.55rem !important;
-}
-
-/* 标签：细线分隔，不用胶囊 */
-[data-region='tags'] {
-  gap: 0 !important;
-  margin-bottom: 3rem !important;
-}
-[data-region='tags'] > button {
-  border: none !important;
-  background: transparent !important;
   border-radius: 0 !important;
-  padding: 0.2rem 0.85rem !important;
-  border-right: 1px solid var(--border) !important;
-  color: var(--muted-foreground) !important;
-  letter-spacing: 0.04em;
-}
-[data-region='tags'] > button:last-child {
-  border-right: none !important;
-}
-[data-region='tags'] > button:hover {
-  color: var(--primary) !important;
+  padding-left: 0.25rem !important;
 }
 
-/* --- 文章页：标题居中放大 --- */
-[data-region='article'] {
-  width: 100%;
+/* 标签：方括号样式 */
+[data-region='tags'] > button {
+  border-radius: 0 !important;
+  border-color: var(--border) !important;
+  font-size: calc(0.72 * var(--fsu, 1rem)) !important;
+  letter-spacing: 0.02em;
+}
+[data-region='tags'] > button::before {
+  content: '[';
+  opacity: 0.5;
+  margin-right: 0.1em;
+}
+[data-region='tags'] > button::after {
+  content: ']';
+  opacity: 0.5;
+  margin-left: 0.1em;
 }
 
-/* 文章标题居中、字号大，像杂志标题 */
-[data-region='article'] > header h1 {
-  text-align: center;
-  font-size: calc(2.1 * var(--fsu, 1rem)) !important;
-  letter-spacing: 0.04em;
-  margin-bottom: 0.4rem;
-}
-[data-region='article'] > header > div {
-  justify-content: center;
-}
-
-/* 页脚居中 */
+/* 页脚 */
 [data-region='footer'] {
-  justify-content: center !important;
   opacity: 0.7;
-  letter-spacing: 0.06em;
-}
-
-/* 窄屏：留白收敛，标题略小 */
-@media (max-width: 767px) {
-  [data-region='article'] > header h1 {
-    font-size: calc(1.6 * var(--fsu, 1rem)) !important;
-  }
+  letter-spacing: 0.03em;
 }
