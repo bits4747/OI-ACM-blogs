@@ -359,7 +359,7 @@ export function NoteView({ slug }: { slug: string }) {
   const fm = note.frontmatter
 
   return (
-    <div className="mx-auto w-full max-w-[63.4rem]" data-region="note">
+    <div className="mx-auto w-full max-w-[var(--content-w)]" data-region="note">
       <article className="mx-auto w-full" data-region="article">
       <nav className="mb-4 flex items-center gap-2 text-sm text-muted-foreground" aria-label={t.back}>
         <button
