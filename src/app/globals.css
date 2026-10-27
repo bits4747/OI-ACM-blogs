@@ -125,14 +125,41 @@
 
 /* ===== 数字花园 · Obsidian 博客自定义样式 ===== */
 
-/* ---------- 阅读字号：全站缩放 ----------
+/* ---------- 阅读字号：只缩放文字，不动版面 ----------
    --site-fs 由右下角字号控件写入 <html>（见 src/lib/font-scale.ts）。
-   根字号一变，全站所有 rem 单位（Tailwind 的 text-*、p-*、gap-* 都是 rem）
-   跟着一起缩放 —— 顶栏、首页卡片、大纲浮层、页脚与正文同步，不再只有正文能调。
-   用百分比而不是 px：用户浏览器的默认字号设置仍然生效（无障碍）。 */
-html {
-  font-size: calc(100% * var(--site-fs, 1));
+
+   ⚠️ 这里绝对不能改根字号（font-size on html）。
+   根字号是 rem 的基准，一改全站所有 rem 一起缩放：Tailwind 的 p-* / gap-* /
+   max-w-[68rem] 都是 rem，于是「调字号」会顺带把博客变宽、把字号控件自己撑大、
+   把正文栏间距拉开 —— 用户明确要求「调大小的那部分大小不能改，博客宽度不能改，
+   只能改字体大小」，所以缩放只落在字号变量上。
+
+   做法：覆写 Tailwind 的字号变量（text-xs / text-sm / … 全部读这些变量，
+   见 .next 产物里 `.text-sm{font-size:var(--text-sm)}`）。
+   行高变量 --text-*--line-height 是无单位倍数，会随字号同比放大，不用单独处理。
+   这些声明不能放进 @layer：Tailwind 的默认值在 @layer theme 里，
+   层外的普通声明优先级更高，才能覆盖住。 */
+:root {
+  --text-xs: calc(0.75rem * var(--site-fs, 1));
+  --text-sm: calc(0.875rem * var(--site-fs, 1));
+  --text-base: calc(1rem * var(--site-fs, 1));
+  --text-lg: calc(1.125rem * var(--site-fs, 1));
+  --text-xl: calc(1.25rem * var(--site-fs, 1));
+  --text-2xl: calc(1.5rem * var(--site-fs, 1));
+  --text-3xl: calc(1.875rem * var(--site-fs, 1));
+  --text-4xl: calc(2.25rem * var(--site-fs, 1));
+  --text-5xl: calc(3rem * var(--site-fs, 1));
+  --text-6xl: calc(3.75rem * var(--site-fs, 1));
+  --text-7xl: calc(4.5rem * var(--site-fs, 1));
+  --text-8xl: calc(6rem * var(--site-fs, 1));
+  --text-9xl: calc(8rem * var(--site-fs, 1));
 }
+
+/* 少数几处写死 px 的小字（首页摘要/日期、大纲标题计数）。
+   它们不走 Tailwind 的字号变量，也不该为了缩放改成 rem（会连带改行高与对齐），
+   给两个语义类，只把 font-size 乘上倍率。 */
+.fs-small { font-size: calc(0.6875rem * var(--site-fs, 1)); } /* 11px */
+.fs-tiny  { font-size: calc(0.625rem * var(--site-fs, 1)); }  /* 10px */
 
 /* 中文字体栈 */
 body,
@@ -149,7 +176,7 @@ h1, h2, h3, .markdown-body h1, .markdown-body h2, .markdown-body h3,
 
 /* ---------- 链接悬浮预览（Obsidian 页面预览风格） ---------- */
 .note-preview .markdown-body {
-  font-size: 0.88rem;
+  font-size: calc(0.88rem * var(--site-fs, 1));
 }
 .note-preview .markdown-body > *:first-child { margin-top: 0; }
 .note-preview .markdown-body h1:first-child,
@@ -166,12 +193,13 @@ h1, h2, h3, .markdown-body h1, .markdown-body h2, .markdown-body h3,
 }
 
 /* ---------- Markdown 正文排版 ---------- */
-/* 字号统一由根节点的 --site-fs 缩放（见上方），正文只需用 1rem 跟随根字号，
-   不再单独乘一个 --note-fs —— 否则会和全站缩放叠加，正文被放大两次。 */
+/* 正文字号 = 1rem × --site-fs（见上方「只缩放文字」那段）：
+   用 calc 而不是改根字号，正文会跟着字号控件变，但正文栏宽度、行距基准、
+   大纲浮层位置全都不动。 */
 .markdown-body {
   line-height: 1.8;
   word-break: break-word;
-  font-size: 1rem;
+  font-size: calc(1rem * var(--site-fs, 1));
 }
 .markdown-body > *:first-child { margin-top: 0; }
 .markdown-body h1, .markdown-body h2, .markdown-body h3, .markdown-body h4,

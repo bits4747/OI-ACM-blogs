@@ -714,7 +714,7 @@ function NoteToc({ headings }: { headings: HeadingEntry[] }) {
         <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
           <T k="toc" />
         </span>
-        <span className="text-[10px] text-muted-foreground/60">{headings.length}</span>
+        <span className="fs-tiny text-muted-foreground/60">{headings.length}</span>
         <button
           type="button"
           data-no-drag

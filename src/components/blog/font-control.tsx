@@ -8,13 +8,19 @@
  *
  * 现在：
  *   1. 控件挂在应用根节点，首页和文章页都能调；
- *   2. 缩放作用在 <html> 的 --site-fs 上，全站所有 rem 一起变（见 lib/font-scale.ts）。
+ *   2. 缩放作用在 <html> 的 --site-fs 上，只改字号变量（见 lib/font-scale.ts
+ *      与 globals.css 里的说明），版面宽度、控件尺寸都不跟着变。
  *
- * 控件本身也跟随缩放，这样放大后按钮更好点，和「整体放大」的预期一致。
+ * ⚠️ 控件自己的字号必须写死 px，不能用 text-xs / text-sm：
+ * 那些类读的是 --text-* 变量，会随 --site-fs 一起变，结果就是「拖着滑块，
+ * 滑块自己也在长大」，用户明确要求「调大小的那部分大小不能改」。
  */
 import { useEffect, useState } from 'react'
 import { FONT_MAX, FONT_MIN, FONT_STEP, applyScale, readScale, saveScale } from '@/lib/font-scale'
 import { useT } from '@/lib/i18n'
+
+/** 控件内部固定尺寸：不参与 --site-fs 缩放 */
+const FIXED = { fontSize: 12, lineHeight: '20px' } as const
 
 export function FontControl() {
   const t = useT()
@@ -39,7 +45,8 @@ export function FontControl() {
     >
       <button
         type="button"
-        className="rounded-full px-1.5 py-0.5 text-xs font-semibold text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+        className="cursor-pointer rounded-full px-1.5 font-semibold text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+        style={{ ...FIXED, fontSize: 11 }}
         onClick={() => commit(scale - FONT_STEP)}
         aria-label={t.fontSmaller}
       >
@@ -53,14 +60,19 @@ export function FontControl() {
         value={scale}
         onChange={(e) => commit(Number(e.target.value))}
         className="w-28 accent-[var(--primary)]"
+        style={FIXED}
         aria-label={t.fontReset}
       />
-      <span className="min-w-11 text-center text-xs tabular-nums text-muted-foreground">
+      <span
+        className="min-w-11 text-center tabular-nums text-muted-foreground"
+        style={FIXED}
+      >
         {Math.round(scale * 100)}%
       </span>
       <button
         type="button"
-        className="rounded-full px-1.5 py-0.5 text-sm font-semibold text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+        className="cursor-pointer rounded-full px-1.5 font-semibold text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+        style={{ ...FIXED, fontSize: 13 }}
         onClick={() => commit(scale + FONT_STEP)}
         aria-label={t.fontLarger}
       >

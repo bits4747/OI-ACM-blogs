@@ -35,13 +35,13 @@ const NoteRow = memo(function NoteRow({
             {note.title}
           </span>
           {snippet && (
-            <span className="mt-0.5 block truncate text-[11px] leading-4 text-muted-foreground/80">
+            <span className="fs-small mt-0.5 block truncate leading-tight text-muted-foreground/80">
               {snippet}
             </span>
           )}
         </span>
         {!note.isPublic && <Lock className="mt-0.5 size-3 shrink-0 text-muted-foreground/70" aria-hidden />}
-        <span className="mt-0.5 shrink-0 text-[11px] tabular-nums text-muted-foreground/80">
+        <span className="fs-small mt-0.5 shrink-0 tabular-nums text-muted-foreground/80">
           {(note.noteDate ?? note.updatedAt).slice(0, 10)}
         </span>
       </button>
