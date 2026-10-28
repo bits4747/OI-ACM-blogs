@@ -268,6 +268,21 @@ function makeLink(url: string, label: string, className: string): Link {
   }
 }
 
+/**
+ * 一个 `#xxx` 到底算不算 Obsidian 标签。
+ *
+ * 两条排除规则（与 obsidian.ts 的 extractTags 保持一致，两边不能各写一套，
+ * 否则「正文渲染成标签、标签页里却没有」这种自相矛盾就会出现）：
+ * - 纯数字：`#2427` 是题目编号，不是标签（Obsidian 本身也不允许纯数字标签）；
+ * - 3~8 位十六进制：多半是颜色值 `#ff0000`，不是标签。
+ */
+function isValidTag(t: string): boolean {
+  if (!t) return false
+  if (/^\d+$/.test(t)) return false
+  if (/^[0-9a-fA-F]{3,8}$/.test(t)) return false
+  return true
+}
+
 /** 普通文本段：处理 ==高亮== 与 #行内标签 */
 function plainNodes(text: string): PhrasingContent[] {
   const nodes: PhrasingContent[] = []
@@ -288,7 +303,12 @@ function plainNodes(text: string): PhrasingContent[] {
     } else if (m[3] !== undefined) {
       // #标签
       const tag = m[3]
-      nodes.push(makeLink('obsidian-tag:' + encodeURIComponent(tag.slice(1)), tag, 'inline-tag'))
+      if (!isValidTag(tag.slice(1))) {
+        // 不算标签就原样留下（比如题目编号 #2427），不能吞掉
+        nodes.push(makeText(tag))
+      } else {
+        nodes.push(makeLink('obsidian-tag:' + encodeURIComponent(tag.slice(1)), tag, 'inline-tag'))
+      }
       last = start + tag.length
     }
   }
@@ -435,7 +455,11 @@ export function remarkObsidian(this: unknown, opts: RemarkObsidianOptions) {
         url?: string
         children: PhrasingContent[]
       }
-      if (p.type === 'link' && typeof p.url === 'string' && p.url.startsWith('obsidian-')) {
+      // 链接文字里不再解析行内标签/高亮：HTML 不允许 <a> 套 <a>，浏览器会强行
+      // 把内层拆出去，结果就是「链接被截断、后半截变成普通文字」——
+      // 正是 `### [#2427. 珍珠项链](https://loj.ac/p/2427)` 渲染坏掉的原因。
+      // Obsidian 自己也一样：链接文字是纯文字，不认 #标签。
+      if (p.type === 'link') {
         return
       }
       const value = (node as { value: string }).value
