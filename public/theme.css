@@ -1,356 +1,264 @@
 /* ============================================================
-   深色霓虹 —— 近黑底 + 青/品红双色描边，等宽字，默认就是暗色
-   版面差异体现在：首页文件夹做成「编号目录行」，行首 [01] 计数器，
-   悬停整行荧光描边；标签做成终端式的 #[tag] 前缀
+   树形 —— 文件树：竖线 + 拐角连接符，绿灰纸感
+   版面差异体现在：首页文件夹做成「树」的一行行，带缩进导轨与 └─ 拐角；
+   笔记列表也用竖线挂着，读起来像资源管理器的目录树
    ⚠️ 宽度由站点统一控制（globals.css 的 --content-w），主题里不写 max-width：
    所有主题的首页与正文宽度必须完全一致，主题只负责颜色、素材，以及
    「非正文界面」的排布（首页文件夹 / 笔记列表 / 标签怎么摆）。
    （大纲是站点的悬浮组件，任何主题都不去动它的位置与交互）
    ============================================================ */
 
-/* 注意：这套「日间模式」也是暗的 —— 霓虹只有暗底才成立。
-   html.dark 再压深一档，两档都不会白底刺眼。 */
 :root {
-  --radius: 0.25rem;
+  --radius: 0.3rem;
 
-  --background: #101319;
-  --foreground: #d9e2ec;
+  --background: #f4f6f3;
+  --foreground: #23302a;
 
-  --card: #161b23;
-  --card-foreground: #d9e2ec;
-  --popover: #161b23;
-  --popover-foreground: #d9e2ec;
+  --card: #fbfdfa;
+  --card-foreground: #23302a;
+  --popover: #fbfdfa;
+  --popover-foreground: #23302a;
 
-  --primary: #22d3ee;
-  --primary-foreground: #06131a;
+  --primary: #4a7c59;
+  --primary-foreground: #f4f6f3;
 
-  --secondary: #1b2230;
-  --secondary-foreground: #d9e2ec;
-  --muted: #181e28;
-  --muted-foreground: #7f8ea3;
-  --accent: #1d2734;
-  --accent-foreground: #e5eef8;
+  --secondary: #e8ede6;
+  --secondary-foreground: #23302a;
+  --muted: #e8ede6;
+  --muted-foreground: #6f7d73;
+  --accent: #dfeae0;
+  --accent-foreground: #23302a;
 
-  --border: #263140;
-  --input: #2c3a4b;
-  --ring: rgba(34, 211, 238, 0.45);
+  --border: #d5ddd3;
+  --input: #d5ddd3;
+  --ring: rgba(74, 124, 89, 0.4);
 
-  --code-bg: #121821;
-  --code-head-bg: #1a222e;
-  --code-head-fg: #7f8ea3;
-  --code-fg: #d9e2ec;
-
-  /* 双色描边：青做主动作，品红只做点缀（悬停/强调），不要两色分量相等 */
-  --neon-a: #22d3ee;
-  --neon-b: #f472b6;
-  --grid-line: rgba(120, 160, 200, 0.05);
+  --code-bg: #eff3ec;
+  --code-head-bg: #e3e9e0;
+  --code-head-fg: #6f7d73;
+  --code-fg: #23302a;
 }
 
 html.dark {
-  --background: #080a0e;
-  --foreground: #dde6f0;
+  --background: #121713;
+  --foreground: #dce5dd;
 
-  --card: #0e1218;
-  --card-foreground: #dde6f0;
-  --popover: #0e1218;
-  --popover-foreground: #dde6f0;
+  --card: #181f19;
+  --card-foreground: #dce5dd;
+  --popover: #181f19;
+  --popover-foreground: #dce5dd;
 
-  --primary: #38e1f5;
-  --primary-foreground: #04101a;
+  --primary: #7fbe8f;
+  --primary-foreground: #0f1511;
 
-  --secondary: #121822;
-  --secondary-foreground: #dde6f0;
-  --muted: #101620;
-  --muted-foreground: #8797ac;
-  --accent: #141c28;
-  --accent-foreground: #eaf3fc;
+  --secondary: #1f2721;
+  --secondary-foreground: #dce5dd;
+  --muted: #1f2721;
+  --muted-foreground: #94a397;
+  --accent: #223026;
+  --accent-foreground: #e4eee6;
 
-  --border: #1c2735;
-  --input: #23303f;
-  --ring: rgba(56, 225, 245, 0.5);
+  --border: rgba(150, 185, 160, 0.18);
+  --input: rgba(150, 185, 160, 0.24);
+  --ring: rgba(127, 190, 143, 0.55);
 
-  --code-bg: #0a0e13;
-  --code-head-bg: #111823;
-  --code-head-fg: #8797ac;
-  --code-fg: #dde6f0;
-
-  --neon-a: #38e1f5;
-  --neon-b: #fb7cc0;
-  --grid-line: rgba(110, 150, 190, 0.045);
+  --code-bg: #171e18;
+  --code-head-bg: #1f2721;
+  --code-head-fg: #9aab9d;
+  --code-fg: #dce5dd;
 }
 
-/* 全站等宽：这套主题的气质全在等宽字上 */
 body,
-.markdown-body,
-[data-region='folders'] > *,
-[data-region='tags'] > button {
-  font-family: 'JetBrains Mono', 'SFMono-Regular', Consolas, 'Cascadia Mono',
-    'Liberation Mono', Menlo, monospace;
-}
-
-/* 背景一层极淡的网格，只在暗底下看得出来 */
-body {
-  background-image: linear-gradient(var(--grid-line) 1px, transparent 1px),
-    linear-gradient(90deg, var(--grid-line) 1px, transparent 1px);
-  background-size: 2.5rem 2.5rem;
-  background-attachment: fixed;
+.markdown-body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC',
+    'Hiragino Sans GB', 'Microsoft YaHei', system-ui, sans-serif;
 }
 
 .markdown-body {
-  line-height: 1.85;
+  line-height: 1.88;
 }
 
 .markdown-body h2 {
   border-bottom: none;
-  margin-top: 2.4em;
-  color: var(--foreground);
-  font-weight: 600;
-  letter-spacing: -0.01em;
-}
-/* 二级标题前的虚拟提示符 */
-.markdown-body h2::before {
-  content: '#';
-  margin-right: 0.5em;
-  color: var(--neon-a);
-  opacity: 0.75;
+  border-left: 2px solid var(--primary);
+  padding-left: 0.55em;
+  margin-top: 2.2em;
 }
 
 .markdown-body blockquote {
-  border-left: 2px solid var(--neon-b);
-  background: rgba(244, 114, 182, 0.05);
+  border-left: 2px solid var(--border);
+  background: transparent;
   font-style: normal;
-  border-radius: 0;
 }
 
-.markdown-body code {
-  background: var(--code-bg);
-  border: 1px solid var(--border);
-  color: var(--neon-a);
-}
-
-/* 顶栏：底部一条荧光细线 */
+/* 顶栏：一条纸边 */
 header.sticky {
-  background: color-mix(in srgb, var(--background) 88%, transparent);
-  backdrop-filter: blur(8px);
+  background: var(--background);
+  backdrop-filter: none;
   border-bottom: 1px solid var(--border);
-  box-shadow: 0 1px 0 0 rgba(34, 211, 238, 0.12);
-}
-
-/* 站名：青色字 + 淡光晕，像一个终端提示符 */
-[data-region='header'] > button:first-child {
-  color: var(--neon-a) !important;
-  text-shadow: 0 0 14px rgba(34, 211, 238, 0.35);
-  letter-spacing: -0.02em;
-}
-[data-region='header'] > button:first-child::after {
-  content: '_';
-  margin-left: 0.12em;
-  color: var(--neon-b);
-  animation: neon-caret 1.15s steps(1) infinite;
-}
-@keyframes neon-caret {
-  0%,
-  50% {
-    opacity: 1;
-  }
-  50.01%,
-  100% {
-    opacity: 0;
-  }
 }
 
 /* ============================================================
-   版面：编号目录行
+   版面：文件树
    ============================================================ */
+
+/* 首页文件夹：单列树。每一行左侧有竖向导轨，行首是 └─ 拐角 */
 [data-region='folders'] {
   display: flex !important;
   flex-direction: column;
   gap: 0 !important;
-  margin-bottom: 1.6rem !important;
-  padding: 0 !important;
-  border-top: 1px solid var(--border);
-  counter-reset: neon-row;
+  margin-bottom: 2.25rem;
+  padding-left: 0.15rem;
+  border-left: 1px solid var(--border);
 }
 
 [data-region='folders'] > * {
-  counter-increment: neon-row;
   position: relative;
   width: 100%;
-  min-height: 0 !important;
-  padding: 0.55rem 0.5rem 0.55rem 3.6rem !important;
-  gap: 0.55rem !important;
   border: none !important;
-  border-bottom: 1px solid var(--border) !important;
   border-radius: 0 !important;
   background: transparent !important;
   box-shadow: none !important;
-  transition: background 0.12s ease, box-shadow 0.12s ease;
+  padding: 0.45rem 0.4rem 0.45rem 2.15rem !important;
+  min-height: 0 !important;
+  gap: 0.4rem !important;
+  transition: background 0.12s ease, padding-left 0.12s ease;
 }
 
-/* 行首 [01] 计数器 */
+/* 拐角连接符：一条横线接到竖轨上 */
 [data-region='folders'] > *::before {
-  content: '[' counter(neon-row, decimal-leading-zero) ']';
+  content: '';
   position: absolute;
   left: 0;
   top: 50%;
+  width: 1.1rem;
+  height: 1px;
+  background: var(--border);
+}
+
+/* 树节点的小三角，落在拐角末端 */
+[data-region='folders'] > *::after {
+  content: '▸';
+  position: absolute;
+  left: 1.25rem;
+  top: 50%;
   transform: translateY(-50%);
-  width: 2.9rem;
-  text-align: right;
-  color: var(--muted-foreground);
-  font-size: calc(0.72 * var(--fsu, 1rem));
-  letter-spacing: -0.02em;
-  opacity: 0.8;
-  pointer-events: none;
+  color: var(--primary);
+  font-size: calc(0.66 * var(--fsu, 1rem));
+  opacity: 0.7;
+  line-height: 1;
 }
 
-/* 悬停：整行荧光描边（用 inset 阴影而不是 border，避免行高跳动） */
+/* 竖轨在最后一行收尾，不画到底 */
+[data-region='folders'] > *:last-child {
+  border-bottom: none !important;
+}
+
 [data-region='folders'] > *:hover {
-  background: rgba(34, 211, 238, 0.06) !important;
-  box-shadow: inset 0 0 0 1px var(--neon-a) !important;
-}
-[data-region='folders'] > *:hover::before {
-  color: var(--neon-b);
-  opacity: 1;
-  text-shadow: 0 0 10px rgba(244, 114, 182, 0.5);
+  background: color-mix(in srgb, var(--primary) 5%, transparent) !important;
+  padding-left: 1.75rem !important;
 }
 
-/* 名字：青色，略紧 */
+/* 文件夹图标换成一个小三角，像树的节点 */
+[data-region='folders'] > * svg {
+  display: none;
+}
+
+/* 名字和篇数压成一行：名字在左，篇数右对齐，行高压到 1.5rem 左右，
+   这样十几行排下来才像一棵树，而不是一列大卡片 */
 [data-region='folders'] > * > span {
   display: flex !important;
   align-items: baseline;
-  gap: 0.7rem;
+  gap: 0.6rem;
   min-width: 0;
 }
 [data-region='folders'] > * .font-serif {
-  font-family: inherit !important;
-  font-size: calc(0.92 * var(--fsu, 1rem)) !important;
+  /* 树状是单列紧凑行，字号必须明显大于笔记列表的标题（0.875rem），
+     否则一列小字排在正文旁边看着比文章标题还小 */
+  font-size: calc(1.05 * var(--fsu, 1rem)) !important;
   font-weight: 500 !important;
-  color: var(--foreground);
   flex: 0 1 auto;
 }
 [data-region='folders'] > * > span > span:last-child {
+  font-size: calc(0.82 * var(--fsu, 1rem));
+  color: var(--muted-foreground);
   margin-top: 0 !important;
   display: inline !important;
-  font-size: calc(0.72 * var(--fsu, 1rem)) !important;
-  color: var(--muted-foreground);
   white-space: nowrap;
 }
-/* 篇数前加一个斜杠，像 ls -l 的字段分隔 */
 [data-region='folders'] > * > span > span:last-child::before {
-  content: '/';
-  margin-right: 0.5em;
-  opacity: 0.45;
+  content: '·';
+  margin-right: 0.45em;
+  opacity: 0.5;
 }
-
-/* 图标：缩到很小，青色 */
-[data-region='folders'] > * > svg:first-child {
-  width: 0.9rem !important;
-  height: 0.9rem !important;
-  color: var(--neon-a) !important;
-  opacity: 0.65;
-}
-/* 右侧箭头换成 ▸，悬停变品红 */
+/* 右侧箭头保留，但缩到很小 */
 [data-region='folders'] > * > svg:last-child {
-  display: none;
-}
-[data-region='folders'] > *:hover > span > span:last-child::after {
-  content: ' ▸';
-  color: var(--neon-b);
+  display: block;
+  opacity: 0.35;
+  width: 0.85rem;
+  height: 0.85rem;
 }
 
-/* 笔记列表：终端面板式，标题行像窗口标题栏 */
+/* 笔记列表：也用竖轨挂着，去掉卡片外框 */
 [data-region='list'] {
-  border: 1px solid var(--border) !important;
-  border-radius: var(--radius) !important;
-  background: var(--card) !important;
+  border: none !important;
+  background: transparent !important;
   box-shadow: none !important;
 }
 [data-region='list'] > div:first-child {
-  background: var(--code-head-bg) !important;
+  background: transparent !important;
   border-bottom: 1px solid var(--border) !important;
-  padding: 0.5rem 0.8rem !important;
-}
-[data-region='list'] > div:first-child > span:nth-child(2) {
-  font-family: inherit !important;
-  color: var(--neon-a) !important;
-  font-size: calc(0.8 * var(--fsu, 1rem)) !important;
-  letter-spacing: 0.02em;
+  padding-left: 0 !important;
+  padding-right: 0 !important;
 }
 [data-region='list'] ul {
   columns: 1 !important;
-  padding: 0.3rem !important;
+  padding: 0 0 0 0.15rem !important;
+  border-left: 1px solid var(--border);
 }
 [data-region='list'] li > button {
   border-radius: 0 !important;
-  padding: 0.3rem 0.55rem !important;
-  border-left: 1px solid transparent !important;
+  padding-left: 1.4rem !important;
+  padding-top: 0.45rem !important;
+  padding-bottom: 0.45rem !important;
+  position: relative;
+}
+[data-region='list'] li > button::before {
+  content: '·';
+  position: absolute;
+  left: 0.6rem;
+  color: var(--primary);
+  opacity: 0.8;
 }
 [data-region='list'] li > button:hover {
-  background: rgba(34, 211, 238, 0.07) !important;
-  border-left-color: var(--neon-a) !important;
-}
-/* 列表里的日期用暗一点的品红，像时间戳 */
-[data-region='list'] li > button > span:last-child {
-  color: var(--neon-b) !important;
-  opacity: 0.6;
-  font-size: calc(0.68 * var(--fsu, 1rem)) !important;
+  background: color-mix(in srgb, var(--primary) 5%, transparent) !important;
 }
 
-/* 标签：终端式 #[tag] */
+/* 标签：无边框，只用竖线分隔 */
 [data-region='tags'] {
-  gap: 0.35rem !important;
-  margin-bottom: 1.1rem !important;
+  gap: 0.2rem 1.1rem !important;
 }
 [data-region='tags'] > button {
-  border: 1px solid var(--border) !important;
-  border-radius: 0 !important;
+  border: none !important;
   background: transparent !important;
+  border-radius: 0 !important;
+  padding: 0.1rem 0 !important;
   color: var(--muted-foreground) !important;
-  font-size: calc(0.7 * var(--fsu, 1rem)) !important;
-  padding: 0.24rem 0.5rem !important;
+  font-size: calc(0.76 * var(--fsu, 1rem)) !important;
 }
-[data-region='tags'] > button:hover {
-  border-color: var(--neon-a) !important;
-  color: var(--neon-a) !important;
-}
+[data-region='tags'] > button:hover,
 [data-region='tags'] > button[class*='bg-primary'] {
-  background: rgba(34, 211, 238, 0.12) !important;
-  border-color: var(--neon-a) !important;
-  color: var(--neon-a) !important;
-}
-
-/* 面包屑：终端路径感，分隔符改 / */
-[data-region='crumbs'] nav button {
-  font-family: inherit;
-  font-size: calc(0.78 * var(--fsu, 1rem)) !important;
-  color: var(--muted-foreground);
-}
-[data-region='crumbs'] nav button:hover {
-  color: var(--neon-a);
-}
-
-/* 文章标题：青色，标题下一条荧光线 */
-[data-region='article'] > header h1 {
-  font-family: inherit !important;
-  font-size: calc(1.85 * var(--fsu, 1rem)) !important;
-  letter-spacing: -0.02em;
-  padding-bottom: 0.5rem;
-  border-bottom: 1px solid var(--border);
+  color: var(--primary) !important;
 }
 
 /* 页脚 */
 [data-region='footer'] {
-  font-family: inherit !important;
-  font-size: calc(0.72 * var(--fsu, 1rem));
-  opacity: 0.5;
-  letter-spacing: 0.02em;
-}
-/* 注意：别在 [data-region='footer'] 上加 ::before —— 站点给这个容器设了
-   justify-between，伪元素会变成一个 flex 项被推到最左，正文被挤到最右还被裁掉。
-   装饰点挂在行内 span 上就不会参与布局分配。 */
-[data-region='footer'] > span::before {
-  content: '●';
-  color: var(--neon-a);
-  margin-right: 0.55em;
   opacity: 0.7;
+  letter-spacing: 0.03em;
+}
+
+@media (max-width: 767px) {
+  [data-region='folders'] > * {
+    padding-left: 1.3rem !important;
+  }
 }
